@@ -51,9 +51,23 @@ cls_model_dir models/ch_ppocr_mobile_v2.0_cls_infer
 rec_model_dir models/ch_PP-OCRv3_rec_infer
 rec_char_dict_path models/dict_chinese.txt
 "@ | Out-File -FilePath (Join-Path $SubDir "config.txt") -Encoding ascii
+
     Write-Host "PaddleOCR-json ready."
 } else {
     Write-Host "PaddleOCR-json already exists, skipping."
+}
+
+# Always remove unnecessary language models (keep only Chinese + English)
+$removeDirs = @(
+    "chinese_cht_mobile_v2.0_rec_infer",
+    "cyrillic_PP-OCRv3_rec_infer",
+    "japan_PP-OCRv3_rec_infer",
+    "korean_PP-OCRv3_rec_infer"
+)
+$modelsDir = Join-Path $PaddleDir "PaddleOCR-json" "models"
+foreach ($d in $removeDirs) {
+    $dirPath = Join-Path $modelsDir $d
+    if (Test-Path $dirPath) { Remove-Item -Recurse -Force $dirPath }
 }
 
 $size = (Get-ChildItem $PaddleDir -Recurse | Measure-Object -Property Length -Sum).Sum
