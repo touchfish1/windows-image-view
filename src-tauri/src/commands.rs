@@ -80,3 +80,29 @@ pub fn show_in_folder(path: String) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[tauri::command]
+pub fn register_file_assoc(extensions: Vec<String>) -> Result<(), String> {
+    for ext in &extensions {
+        crate::file_assoc::register_extension(ext)?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn unregister_file_assoc(extensions: Vec<String>) -> Result<(), String> {
+    for ext in &extensions {
+        crate::file_assoc::unregister_extension(ext)?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn check_file_assoc() -> Vec<crate::file_assoc::AssocStatus> {
+    crate::file_assoc::check_registration()
+}
+
+#[tauri::command]
+pub fn open_default_apps() -> Result<(), String> {
+    crate::file_assoc::open_default_apps_settings()
+}

@@ -52,6 +52,11 @@ export interface RenameResult {
   failed: [string, string][];
 }
 
+export interface AssocStatus {
+  extension: string;
+  is_registered: boolean;
+}
+
 export interface ImageViewerState {
   imageInfo: ImageInfo | null;
   ocrResult: OcrResult | null;

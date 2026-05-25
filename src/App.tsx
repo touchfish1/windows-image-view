@@ -10,6 +10,7 @@ import { SlideshowOverlay } from "@/components/SlideshowOverlay";
 import { DropOverlay } from "@/components/DropOverlay";
 import { BatchConvertDialog } from "@/components/BatchConvertDialog";
 import { BatchRenameDialog } from "@/components/BatchRenameDialog";
+import { SettingsDialog } from "@/components/SettingsDialog";
 import { getFileSize, saveImageAs, showInFolder } from "@/lib/api";
 import { formatFileSize } from "@/lib/utils";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -37,6 +38,7 @@ function App() {
   const [showThumbnails, setShowThumbnails] = useState(true);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [fileType, setFileType] = useState<string | null>(null);
   const [fileModified, setFileModified] = useState<string | null>(null);
 
@@ -184,6 +186,7 @@ function App() {
         onSlideshow={startSlideshow}
         onBatchConvert={() => setShowConvertDialog(true)}
         onBatchRename={() => setShowRenameDialog(true)}
+        onSettings={() => setShowSettings(true)}
       />
 
       <div className="flex-1 flex overflow-hidden relative">
@@ -266,6 +269,11 @@ function App() {
         imageList={state.imageList}
         isOpen={showRenameDialog}
         onClose={() => setShowRenameDialog(false)}
+      />
+
+      <SettingsDialog
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
       />
     </div>
   );

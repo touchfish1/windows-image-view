@@ -11,6 +11,7 @@ import {
   Play,
   ImageDown,
   ScanText,
+  Settings,
 } from "lucide-react";
 
 interface ToolbarProps {
@@ -30,6 +31,7 @@ interface ToolbarProps {
   onSlideshow?: () => void;
   onBatchConvert?: () => void;
   onBatchRename?: () => void;
+  onSettings?: () => void;
 }
 
 export function Toolbar({
@@ -49,6 +51,7 @@ export function Toolbar({
   onSlideshow,
   onBatchConvert,
   onBatchRename,
+  onSettings,
 }: ToolbarProps) {
   return (
     <div className="flex items-center gap-1 px-2 py-1.5 border-b border-border bg-card">
@@ -171,6 +174,18 @@ export function Toolbar({
         className="h-8 w-8"
       >
         <ScanText className="h-4 w-4" />
+      </Button>
+
+      <div className="flex-1" />
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onSettings}
+        title="设置"
+        className="h-8 w-8"
+      >
+        <Settings className="h-4 w-4" />
       </Button>
     </div>
   );

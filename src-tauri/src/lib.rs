@@ -3,6 +3,7 @@ pub mod image_loader;
 pub mod ocr_engine;
 pub mod exif;
 pub mod batch;
+pub mod file_assoc;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -19,6 +20,10 @@ pub fn run() {
             commands::preview_rename,
             commands::save_image_as,
             commands::show_in_folder,
+            commands::register_file_assoc,
+            commands::unregister_file_assoc,
+            commands::check_file_assoc,
+            commands::open_default_apps,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

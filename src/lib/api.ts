@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { ImageInfo, OcrResult, ExifData, ConvertOptions, ConvertResult, RenameItem, RenameResult } from "@/types";
+import type { ImageInfo, OcrResult, ExifData, ConvertOptions, ConvertResult, RenameItem, RenameResult, AssocStatus } from "@/types";
 
 export async function openFileDialog(): Promise<string | null> {
   const selected = await open({
@@ -56,4 +56,20 @@ export async function saveImageAs(source: string, dest: string): Promise<void> {
 
 export async function showInFolder(path: string): Promise<void> {
   return invoke<void>("show_in_folder", { path });
+}
+
+export async function registerFileAssoc(extensions: string[]): Promise<void> {
+  return invoke<void>("register_file_assoc", { extensions });
+}
+
+export async function unregisterFileAssoc(extensions: string[]): Promise<void> {
+  return invoke<void>("unregister_file_assoc", { extensions });
+}
+
+export async function checkFileAssoc(): Promise<AssocStatus[]> {
+  return invoke<AssocStatus[]>("check_file_assoc");
+}
+
+export async function openDefaultApps(): Promise<void> {
+  return invoke<void>("open_default_apps");
 }
