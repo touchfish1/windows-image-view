@@ -1,4 +1,4 @@
-use crate::{image_loader, ocr_engine, paddle_ocr, tesseract_ocr};
+use crate::{image_loader, ocr_engine, paddle_ocr};
 
 #[tauri::command]
 pub fn open_image(path: String) -> Result<image_loader::ImageInfo, String> {
@@ -6,35 +6,20 @@ pub fn open_image(path: String) -> Result<image_loader::ImageInfo, String> {
 }
 
 #[tauri::command]
-pub fn run_ocr(path: String, lang: Option<String>) -> Result<tesseract_ocr::OcrResult, String> {
-    let lang = lang.unwrap_or_else(|| "zh-Hans".to_string());
-
-    // 1. Try PaddleOCR-json (best accuracy, especially for Chinese)
-    if paddle_ocr::is_paddle_available() || paddle_ocr::is_rapid_available() {
-        match paddle_ocr::run_ocr(&path, &lang) {
+pub fn run_ocr(path: String, _lang: Option<String>) -> Result<paddle_ocr::OcrResult, String> {
+    // Try PaddleOCR-json first (best accuracy, especially for Chinese)
+    if paddle_ocr::is_available() {
+        match paddle_ocr::run_ocr(&path) {
             Ok(result) if !result.blocks.is_empty() => return Ok(result),
-            Ok(_) => { /* PaddleOCR returned empty — fall through */ }
-            Err(e) => {
-                eprintln!("PaddleOCR failed, falling back: {e}");
-            }
+            Ok(_) => { /* empty — fall through */ }
+            Err(e) => eprintln!("PaddleOCR failed, falling back to Windows OCR: {e}"),
         }
     }
 
-    // 2. Try Tesseract (good for non-Chinese text, lightweight)
-    if tesseract_ocr::is_available() {
-        match tesseract_ocr::run_ocr(&path, &lang) {
-            Ok(result) if !result.blocks.is_empty() => return Ok(result),
-            Ok(_) => { /* Tesseract returned empty — fall through */ }
-            Err(e) => {
-                eprintln!("Tesseract OCR failed, falling back: {e}");
-            }
-        }
-    }
-
-    // 3. Fall back to Windows OCR (universal fallback)
-    let win_result = ocr_engine::run_ocr(&path, &lang)?;
-    Ok(tesseract_ocr::OcrResult {
-        blocks: win_result.blocks.into_iter().map(|b| tesseract_ocr::OcrBlock {
+    // Fall back to Windows OCR
+    let win_result = ocr_engine::run_ocr(&path, "zh-Hans")?;
+    Ok(paddle_ocr::OcrResult {
+        blocks: win_result.blocks.into_iter().map(|b| paddle_ocr::OcrBlock {
             text: b.text,
             bbox_x: b.bbox_x,
             bbox_y: b.bbox_y,

@@ -1,20 +1,33 @@
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::OnceLock;
 use tauri::Manager;
 
-use crate::tesseract_ocr::{OcrBlock, OcrResult};
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OcrBlock {
+    pub text: String,
+    pub bbox_x: f64,
+    pub bbox_y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OcrResult {
+    pub blocks: Vec<OcrBlock>,
+    pub full_text: String,
+    pub engine: String,
+}
 
 static PADDLE_PATH: OnceLock<Option<PathBuf>> = OnceLock::new();
-static RAPID_PATH: OnceLock<Option<PathBuf>> = OnceLock::new();
 
-/// Initialize PaddleOCR/RapidOCR paths from Tauri app resources.
+/// Initialize PaddleOCR-json path from Tauri app resources.
 pub fn init(app: &tauri::App) {
     PADDLE_PATH.set(find_paddle_ocr(app)).ok();
-    RAPID_PATH.set(find_rapid_ocr(app)).ok();
 }
 
 /// Check if PaddleOCR-json is available.
-pub fn is_paddle_available() -> bool {
+pub fn is_available() -> bool {
     PADDLE_PATH
         .get()
         .and_then(|p| p.as_ref())
@@ -22,80 +35,40 @@ pub fn is_paddle_available() -> bool {
         .unwrap_or(false)
 }
 
-/// Check if RapidOCR-json is available.
-pub fn is_rapid_available() -> bool {
-    RAPID_PATH
+/// Run PaddleOCR-json OCR on an image.
+pub fn run_ocr(path: &str) -> Result<OcrResult, String> {
+    let engine_path = PADDLE_PATH
         .get()
         .and_then(|p| p.as_ref())
-        .map(|p| p.exists())
-        .unwrap_or(false)
-}
+        .ok_or_else(|| "PaddleOCR-json not available".to_string())?;
 
-/// Run PaddleOCR-json or RapidOCR-json on an image.
-/// Returns Ok(result) if successful with non-empty text,
-/// or an Err with description if unavailable or failed.
-pub fn run_ocr(path: &str, _lang: &str) -> Result<OcrResult, String> {
-    // Try PaddleOCR-json first (better accuracy, requires AVX)
-    if let Some(p) = PADDLE_PATH.get().and_then(|p| p.as_ref()) {
-        match run_engine(p, path, "PaddleOCR") {
-            Ok(result) if !result.blocks.is_empty() => return Ok(result),
-            Ok(_) => { /* empty result — fall through */ }
-            Err(e) => {
-                eprintln!("PaddleOCR-json failed: {e}");
-            }
-        }
-    }
-
-    // Fallback to RapidOCR-json (no AVX needed, ONNX-based)
-    if let Some(p) = RAPID_PATH.get().and_then(|p| p.as_ref()) {
-        match run_engine(p, path, "RapidOCR") {
-            Ok(result) if !result.blocks.is_empty() => return Ok(result),
-            Ok(_) => { /* empty result — fall through */ }
-            Err(e) => {
-                eprintln!("RapidOCR-json failed: {e}");
-            }
-        }
-    }
-
-    Err("No PaddleOCR engine available or all returned empty".into())
-}
-
-/// Run a single OCR engine process and parse its JSON output.
-fn run_engine(engine_path: &PathBuf, image_path: &str, engine_name: &str) -> Result<OcrResult, String> {
     let engine_dir = engine_path.parent().ok_or("Invalid engine path")?;
 
-    let mut cmd = std::process::Command::new(engine_path);
-
-    // PaddleOCR-json needs an explicit config path; RapidOCR auto-detects models/
-    if engine_name == "PaddleOCR" {
-        cmd.arg("--config_path=config.txt");
-    }
-
-    let output = cmd
-        .arg(format!("--image_path={}", image_path))
+    let output = std::process::Command::new(engine_path)
+        .arg("--config_path=config.txt")
+        .arg(format!("--image_path={}", path))
         .current_dir(engine_dir)
         .output()
-        .map_err(|e| format!("Failed to run {}: {}", engine_name, e))?;
+        .map_err(|e| format!("Failed to run PaddleOCR-json: {e}"))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        eprintln!("{} stderr: {}", engine_name, stderr);
-        return Err(format!("{} exited with error: {}", engine_name, stderr));
+        eprintln!("PaddleOCR-json stderr: {}", stderr);
+        return Err(format!("PaddleOCR-json error: {}", stderr));
     }
 
-    parse_json_output(&output.stdout, engine_name)
+    parse_json_output(&output.stdout)
 }
 
-/// Parse JSON output from PaddleOCR-json / RapidOCR-json.
+/// Parse JSON output from PaddleOCR-json.
 ///
 /// The engine outputs initialization info (plain text) followed by a single JSON line.
-/// We find the JSON by locating the outermost `{...}`.
-fn parse_json_output(output: &[u8], engine_name: &str) -> Result<OcrResult, String> {
+fn parse_json_output(output: &[u8]) -> Result<OcrResult, String> {
     let raw = String::from_utf8_lossy(output);
 
     // Find the first '{' and last '}' to extract JSON
-    let json_start = raw.find('{').ok_or_else(|| "No JSON found in output".to_string())?;
-    let json_end = raw.rfind('}').ok_or_else(|| "No JSON end found in output".to_string())?;
+    let json_start = raw.find('{').ok_or("No JSON found in output")?;
+    let json_end = raw.rfind('}').ok_or("No JSON end found in output")?;
     let json_str = &raw[json_start..=json_end];
 
     let value: serde_json::Value =
@@ -107,7 +80,7 @@ fn parse_json_output(output: &[u8], engine_name: &str) -> Result<OcrResult, Stri
         100 => {
             let data = value["data"]
                 .as_array()
-                .ok_or_else(|| "Invalid data format: expected array".to_string())?;
+                .ok_or_else(|| "Invalid data: expected array".to_string())?;
 
             let mut blocks: Vec<OcrBlock> = Vec::new();
             let mut full_text = String::new();
@@ -126,10 +99,10 @@ fn parse_json_output(output: &[u8], engine_name: &str) -> Result<OcrResult, Stri
                 let box_arr = item["box"].as_array().and_then(|b| {
                     if b.len() >= 4 {
                         Some((
-                            b[0][0].as_f64().unwrap_or(0.0), // left-top x
-                            b[0][1].as_f64().unwrap_or(0.0), // left-top y
-                            b[2][0].as_f64().unwrap_or(0.0), // right-bottom x
-                            b[2][1].as_f64().unwrap_or(0.0), // right-bottom y
+                            b[0][0].as_f64().unwrap_or(0.0),
+                            b[0][1].as_f64().unwrap_or(0.0),
+                            b[2][0].as_f64().unwrap_or(0.0),
+                            b[2][1].as_f64().unwrap_or(0.0),
                         ))
                     } else {
                         None
@@ -163,27 +136,24 @@ fn parse_json_output(output: &[u8], engine_name: &str) -> Result<OcrResult, Stri
             Ok(OcrResult {
                 blocks,
                 full_text,
-                engine: engine_name.into(),
+                engine: "PaddleOCR".into(),
             })
         }
-        101 => {
-            // No text found in image
-            Ok(OcrResult {
-                blocks: vec![],
-                full_text: String::new(),
-                engine: engine_name.into(),
-            })
-        }
+        101 => Ok(OcrResult {
+            blocks: vec![],
+            full_text: String::new(),
+            engine: "PaddleOCR".into(),
+        }),
         code => {
             let msg = value["data"].as_str().unwrap_or("Unknown error");
-            Err(format!("{} error ({}): {}", engine_name, code, msg))
+            Err(format!("PaddleOCR error ({}): {}", code, msg))
         }
     }
 }
 
 /// Find PaddleOCR-json bundled with the app.
 fn find_paddle_ocr(app: &tauri::App) -> Option<PathBuf> {
-    // In development: check project root's paddleocr directory
+    // Dev: CARGO_MANIFEST_DIR/paddleocr/PaddleOCR-json/PaddleOCR-json.exe
     let dev_path = {
         let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         p.push("paddleocr");
@@ -195,34 +165,12 @@ fn find_paddle_ocr(app: &tauri::App) -> Option<PathBuf> {
         return Some(dev_path);
     }
 
-    // In production: check resource directory
+    // Prod: resource_dir/paddleocr/PaddleOCR-json/PaddleOCR-json.exe
     if let Ok(resource_dir) = app.handle().path().resource_dir() {
-        let prod_path = resource_dir.join("paddleocr").join("PaddleOCR-json").join("PaddleOCR-json.exe");
-        if prod_path.exists() {
-            return Some(prod_path);
-        }
-    }
-
-    None
-}
-
-/// Find RapidOCR-json bundled with the app.
-fn find_rapid_ocr(app: &tauri::App) -> Option<PathBuf> {
-    // In development: check project root's paddleocr directory
-    let dev_path = {
-        let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        p.push("paddleocr");
-        p.push("RapidOCR-json");
-        p.push("RapidOCR-json.exe");
-        p
-    };
-    if dev_path.exists() {
-        return Some(dev_path);
-    }
-
-    // In production: check resource directory
-    if let Ok(resource_dir) = app.handle().path().resource_dir() {
-        let prod_path = resource_dir.join("paddleocr").join("RapidOCR-json").join("RapidOCR_json.exe");
+        let prod_path = resource_dir
+            .join("paddleocr")
+            .join("PaddleOCR-json")
+            .join("PaddleOCR-json.exe");
         if prod_path.exists() {
             return Some(prod_path);
         }
