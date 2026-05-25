@@ -49,6 +49,7 @@ export function ImageCanvas({
   const lastPos = useRef({ x: 0, y: 0 });
   const dragStartBlock = useRef(-1);
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const animationFrameRef = useRef<number>(0);
   const ocrBlocksRef = useRef(ocrBlocks);
   ocrBlocksRef.current = ocrBlocks;
 
@@ -99,6 +100,7 @@ export function ImageCanvas({
     const img = new Image();
     img.src = imageInfo.data;
     img.onload = () => {
+      cancelAnimationFrame(animationFrameRef.current);
       imageRef.current = img;
       drawCanvas();
     };
@@ -118,6 +120,40 @@ export function ImageCanvas({
     if (!img) {
       ctx.fillStyle = "#1a1a1a";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // If imageInfo exists but img hasn't loaded yet, show loading
+      if (imageInfo) {
+        ctx.fillStyle = "#888";
+        ctx.font = "13px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        // Spinner
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        const r = 14;
+        const now = Date.now();
+        const rotation = ((now % 1500) / 1500) * Math.PI * 2;
+
+        ctx.save();
+        ctx.translate(cx, cy - 20);
+        ctx.rotate(rotation);
+        ctx.strokeStyle = "rgba(255,255,255,0.2)";
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 1.5);
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(255,255,255,0.7)";
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 0.4);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.fillStyle = "rgba(255,255,255,0.5)";
+        ctx.font = "12px Inter, sans-serif";
+        ctx.fillText("加载中...", cx, cy + 8);
+      }
       return;
     }
 
@@ -155,6 +191,18 @@ export function ImageCanvas({
   useEffect(() => {
     drawCanvas();
   }, [drawCanvas]);
+
+  // Animation loop for loading spinner
+  useEffect(() => {
+    if (imageInfo && !imageRef.current) {
+      const animate = () => {
+        drawCanvas();
+        animationFrameRef.current = requestAnimationFrame(animate);
+      };
+      animationFrameRef.current = requestAnimationFrame(animate);
+      return () => cancelAnimationFrame(animationFrameRef.current);
+    }
+  }, [imageInfo, drawCanvas]);
 
   // Handle resize
   useEffect(() => {
