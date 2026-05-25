@@ -186,7 +186,7 @@ export function ImageCanvas({
     }
 
     ctx.restore();
-  }, [ocrBlocks, zoom, offset, selectionRange, zoomMode, calculateFitZoom]);
+  }, [ocrBlocks, zoom, offset, selectionRange, zoomMode, calculateFitZoom, imageInfo]);
 
   useEffect(() => {
     drawCanvas();
