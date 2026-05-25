@@ -1,49 +1,47 @@
-use image::DynamicImage;
 use std::path::Path;
+use base64::Engine;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ImageInfo {
     pub width: u32,
     pub height: u32,
-    pub data: String, // base64 encoded image data
+    pub data: String, // base64 data URL
+    pub path: String,
 }
 
-pub fn load_image(path: &str) -> Result<DynamicImage, String> {
-    let img = image::open(Path::new(path))
-        .map_err(|e| format!("Failed to load image: {}", e))?;
-    Ok(img)
-}
+pub fn load_image(path: &str) -> Result<ImageInfo, String> {
+    let bytes = std::fs::read(path).map_err(|e| format!("Failed to read file: {}", e))?;
 
-pub fn get_image_info(path: &str) -> Result<ImageInfo, String> {
-    let img = load_image(path)?;
-    let width = img.width();
-    let height = img.height();
+    // Fast dimension extraction (reads only header bytes)
+    let (width, height) = image::image_dimensions(Path::new(path))
+        .map_err(|e| format!("Failed to get image dimensions: {}", e))?;
 
-    // Resize for display if too large (max 4096px on either dimension, preserves aspect ratio)
-    let display_img = if width > 4096 || height > 4096 {
-        img.thumbnail(4096, 4096)
-    } else {
-        img
+    // Determine mime type from extension
+    let mime = match Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_lowercase())
+        .as_deref()
+    {
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        Some("png") => "image/png",
+        Some("bmp") => "image/bmp",
+        Some("gif") => "image/gif",
+        Some("webp") => "image/webp",
+        _ => "image/png",
     };
 
-    // Return actual display dimensions (may differ from original after resize)
-    let display_width = display_img.width();
-    let display_height = display_img.height();
-
-    // Encode to JPEG base64 for transport to frontend
-    let mut buf = std::io::Cursor::new(Vec::new());
-    display_img
-        .write_to(&mut buf, image::ImageFormat::Jpeg)
-        .map_err(|e| format!("Failed to encode image: {}", e))?;
-    let b64 = base64::Engine::encode(
-        &base64::engine::general_purpose::STANDARD,
-        buf.get_ref(),
-    );
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    let data = format!("data:{};base64,{}", mime, b64);
 
     Ok(ImageInfo {
-        width: display_width,
-        height: display_height,
-        data: format!("data:image/jpeg;base64,{}", b64),
+        width,
+        height,
+        data,
+        path: path.to_string(),
     })
 }
 
+pub fn get_image_info(path: &str) -> Result<ImageInfo, String> {
+    load_image(path)
+}

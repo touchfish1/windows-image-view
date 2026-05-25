@@ -25,3 +25,11 @@ export async function runOcr(
 ): Promise<OcrResult> {
   return invoke<OcrResult>("run_ocr", { path, lang: lang ?? null });
 }
+
+export async function listImages(path: string): Promise<string[]> {
+  return invoke<string[]>("list_images", { path });
+}
+
+export async function getFileSize(path: string): Promise<number> {
+  return invoke<number>("get_file_size", { path });
+}

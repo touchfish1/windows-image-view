@@ -14,10 +14,13 @@ export interface OcrResult {
 export interface ImageInfo {
   width: number;
   height: number;
-  data: string; // base64 data URL
+  data: string;
+  path: string;
 }
 
 export type OcrStatus = "idle" | "running" | "done" | "error";
+
+export type ZoomMode = "fit" | "free";
 
 export interface ImageViewerState {
   imageInfo: ImageInfo | null;
@@ -25,6 +28,10 @@ export interface ImageViewerState {
   ocrStatus: OcrStatus;
   zoom: number;
   offset: { x: number; y: number };
-  selectedBlockIndex: number | null;
+  selectionRange: { start: number; end: number } | null;
   currentPath: string | null;
+  imageList: string[];
+  currentIndex: number;
+  zoomMode: ZoomMode;
+  isFullscreen: boolean;
 }

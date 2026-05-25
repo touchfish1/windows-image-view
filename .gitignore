@@ -26,6 +26,9 @@ Thumbs.db
 docs/
 .superpowers/
 
+# Source icon (used to generate platform icons, not needed at runtime)
+1779693604.png
+
 # Logs
 *.log
 npm-debug.log*

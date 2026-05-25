@@ -1,15 +1,19 @@
 import { useRef, useEffect, useCallback } from "react";
 import type { ImageInfo, OcrBlock } from "@/types";
+import { joinSelectedText } from "@/lib/utils";
 
 interface ImageCanvasProps {
   imageInfo: ImageInfo | null;
   ocrBlocks: OcrBlock[];
   zoom: number;
   offset: { x: number; y: number };
-  selectedBlockIndex: number | null;
+  selectionRange: { start: number; end: number } | null;
   onZoom: (delta: number) => void;
   onPan: (dx: number, dy: number) => void;
-  onSelectBlock: (index: number | null) => void;
+  onSelectionChange: (range: { start: number; end: number } | null) => void;
+  zoomMode: "fit" | "free";
+  onSetZoomMode: (mode: "fit" | "free") => void;
+  onSetZoomAbsolute: (zoom: number) => void;
 }
 
 export function ImageCanvas({
@@ -17,17 +21,62 @@ export function ImageCanvas({
   ocrBlocks,
   zoom,
   offset,
-  selectedBlockIndex,
+  selectionRange,
   onZoom,
   onPan,
-  onSelectBlock,
+  onSelectionChange,
+  zoomMode,
+  onSetZoomMode,
+  onSetZoomAbsolute,
 }: ImageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const isDragging = useRef(false);
+  const isPanning = useRef(false);
+  const isSelecting = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
+  const dragStartBlock = useRef(-1);
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const ocrBlocksRef = useRef(ocrBlocks);
+  ocrBlocksRef.current = ocrBlocks;
 
-  // Load image into memory
+  const calculateFitZoom = useCallback(() => {
+    const canvas = canvasRef.current;
+    const img = imageRef.current;
+    if (!canvas || !img) return 1;
+    const scaleX = canvas.width / img.width;
+    const scaleY = canvas.height / img.height;
+    return Math.min(scaleX, scaleY) * 0.9;
+  }, []);
+
+  const screenToImage = useCallback(
+    (sx: number, sy: number) => {
+      const canvas = canvasRef.current;
+      const img = imageRef.current;
+      if (!canvas || !img) return { x: 0, y: 0 };
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      return {
+        x: (sx - cx - offset.x) / zoom + img.width / 2,
+        y: (sy - cy - offset.y) / zoom + img.height / 2,
+      };
+    },
+    [zoom, offset]
+  );
+
+  const hitTestBlock = useCallback(
+    (sx: number, sy: number): number => {
+      const pt = screenToImage(sx, sy);
+      return ocrBlocksRef.current.findIndex(
+        (b) =>
+          pt.x >= b.bbox_x &&
+          pt.x <= b.bbox_x + b.width &&
+          pt.y >= b.bbox_y &&
+          pt.y <= b.bbox_y + b.height
+      );
+    },
+    [screenToImage]
+  );
+
+  // Load image via asset protocol
   useEffect(() => {
     if (!imageInfo) {
       imageRef.current = null;
@@ -41,7 +90,7 @@ export function ImageCanvas({
     };
   }, [imageInfo]);
 
-  // Redraw on any state change
+  // Redraw
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -58,31 +107,33 @@ export function ImageCanvas({
     ctx.fillStyle = "#1a1a1a";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    const effectiveZoom = zoomMode === "fit" ? calculateFitZoom() : zoom;
+    const effectiveOffset = zoomMode === "fit" ? { x: 0, y: 0 } : offset;
+
     ctx.save();
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
-    ctx.translate(cx + offset.x, cy + offset.y);
-    ctx.scale(zoom, zoom);
+    ctx.translate(cx + effectiveOffset.x, cy + effectiveOffset.y);
+    ctx.scale(effectiveZoom, effectiveZoom);
     ctx.translate(-img.width / 2, -img.height / 2);
 
     ctx.drawImage(img, 0, 0);
 
-    // Draw OCR blocks
-    ocrBlocks.forEach((block, index) => {
-      const isSelected = index === selectedBlockIndex;
-      ctx.strokeStyle = isSelected
-        ? "rgba(255, 200, 0, 0.9)"
-        : "rgba(255, 200, 0, 0.4)";
-      ctx.fillStyle = isSelected
-        ? "rgba(255, 200, 0, 0.2)"
-        : "rgba(255, 200, 0, 0.1)";
-      ctx.lineWidth = isSelected ? 2 : 1;
-      ctx.fillRect(block.bbox_x, block.bbox_y, block.width, block.height);
-      ctx.strokeRect(block.bbox_x, block.bbox_y, block.width, block.height);
-    });
+    // Draw OCR selection highlights only when actively selecting
+    if (selectionRange !== null) {
+      ocrBlocks.forEach((block, index) => {
+        if (index >= selectionRange.start && index <= selectionRange.end) {
+          ctx.strokeStyle = "rgba(255, 200, 0, 0.9)";
+          ctx.fillStyle = "rgba(255, 200, 0, 0.2)";
+          ctx.lineWidth = 2;
+          ctx.fillRect(block.bbox_x, block.bbox_y, block.width, block.height);
+          ctx.strokeRect(block.bbox_x, block.bbox_y, block.width, block.height);
+        }
+      });
+    }
 
     ctx.restore();
-  }, [ocrBlocks, zoom, offset, selectedBlockIndex]);
+  }, [ocrBlocks, zoom, offset, selectionRange, zoomMode, calculateFitZoom]);
 
   useEffect(() => {
     drawCanvas();
@@ -107,72 +158,127 @@ export function ImageCanvas({
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
       e.preventDefault();
-      const delta = e.deltaY > 0 ? -1 : 1;
-      onZoom(delta);
+      if (zoomMode === "fit") {
+        const fitZoom = calculateFitZoom();
+        onSetZoomAbsolute(fitZoom);
+        onSetZoomMode("free");
+      } else {
+        const delta = e.deltaY > 0 ? -1 : 1;
+        onZoom(delta);
+      }
     },
-    [onZoom]
+    [zoomMode, onZoom, onSetZoomMode, onSetZoomAbsolute, calculateFitZoom]
   );
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    isDragging.current = true;
-    lastPos.current = { x: e.clientX, y: e.clientY };
-  }, []);
-
-  const handleMouseMove = useCallback(
+  const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      if (!isDragging.current) return;
-      const dx = e.clientX - lastPos.current.x;
-      const dy = e.clientY - lastPos.current.y;
-      lastPos.current = { x: e.clientX, y: e.clientY };
-      onPan(dx, dy);
-    },
-    [onPan]
-  );
-
-  const handleMouseUp = useCallback(() => {
-    isDragging.current = false;
-  }, []);
-
-  const handleClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (isDragging.current) return;
-
       const canvas = canvasRef.current;
-      if (!canvas || !imageRef.current) return;
-
+      if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
 
-      // Convert screen coords to image coords
-      const cx = canvas.width / 2;
-      const cy = canvas.height / 2;
-      const imgX = (mx - cx - offset.x) / zoom + imageRef.current.width / 2;
-      const imgY = (my - cy - offset.y) / zoom + imageRef.current.height / 2;
-
-      const hitIndex = ocrBlocks.findIndex(
-        (b) =>
-          imgX >= b.bbox_x &&
-          imgX <= b.bbox_x + b.width &&
-          imgY >= b.bbox_y &&
-          imgY <= b.bbox_y + b.height
-      );
-
-      onSelectBlock(hitIndex >= 0 ? hitIndex : null);
+      const hit = hitTestBlock(mx, my);
+      if (hit >= 0) {
+        isSelecting.current = true;
+        isPanning.current = false;
+        canvas.style.cursor = "text";
+        dragStartBlock.current = hit;
+        onSelectionChange({ start: hit, end: hit });
+      } else {
+        isPanning.current = true;
+        isSelecting.current = false;
+        canvas.style.cursor = "grabbing";
+        onSelectionChange(null);
+        lastPos.current = { x: e.clientX, y: e.clientY };
+      }
     },
-    [ocrBlocks, zoom, offset, onSelectBlock]
+    [hitTestBlock, onSelectionChange]
   );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      // Update cursor: text when selecting or hovering a block, grabbing when panning
+      const hit = hitTestBlock(mx, my);
+      canvas.style.cursor = isSelecting.current
+        ? "text"
+        : isPanning.current
+          ? "grabbing"
+          : hit >= 0
+            ? "text"
+            : "grab";
+
+      if (isSelecting.current) {
+        if (hit >= 0) {
+          const start = Math.min(dragStartBlock.current, hit);
+          const end = Math.max(dragStartBlock.current, hit);
+          onSelectionChange({ start, end });
+        }
+        return;
+      }
+
+      if (isPanning.current) {
+        const dx = e.clientX - lastPos.current.x;
+        const dy = e.clientY - lastPos.current.y;
+        lastPos.current = { x: e.clientX, y: e.clientY };
+        onPan(dx, dy);
+      }
+    },
+    [hitTestBlock, onPan, onSelectionChange]
+  );
+
+  const handleMouseUp = useCallback(
+    (e: React.MouseEvent) => {
+      isPanning.current = false;
+      isSelecting.current = false;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const hit = hitTestBlock(mx, my);
+      canvas.style.cursor = hit >= 0 ? "text" : "grab";
+    },
+    [hitTestBlock]
+  );
+
+  const handleMouseLeave = useCallback(() => {
+    isPanning.current = false;
+    isSelecting.current = false;
+    const canvas = canvasRef.current;
+    if (canvas) canvas.style.cursor = "grab";
+  }, []);
+
+  // Ctrl+C to copy selected text
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "c" && selectionRange) {
+        const text = joinSelectedText(ocrBlocks, selectionRange);
+        if (text) {
+          e.preventDefault();
+          navigator.clipboard.writeText(text);
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [ocrBlocks, selectionRange]);
 
   return (
     <canvas
       ref={canvasRef}
-      className="flex-1 w-full h-full cursor-grab active:cursor-grabbing"
+      className="flex-1 w-full h-full"
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onClick={handleClick}
+      onMouseLeave={handleMouseLeave}
       tabIndex={0}
     />
   );
