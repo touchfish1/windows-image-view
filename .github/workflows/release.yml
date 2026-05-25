@@ -1,0 +1,94 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号 (例如 1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.arch == 'x86_64' && 'x86_64-pc-windows-msvc' || 'i686-pc-windows-msvc' }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $ver = "${{ inputs.version }}"
+            # Update version in tauri.conf.json and Cargo.toml
+            $tauriConf = "src-tauri/tauri.conf.json"
+            (Get-Content $tauriConf) -replace '"version": ".*"', "`"version`": `"$ver`"" | Set-Content $tauriConf
+            $cargoToml = "src-tauri/Cargo.toml"
+            (Get-Content $cargoToml) -replace '^version = ".*"', "version = `"$ver`"" | Set-Content $cargoToml
+            "tag=v$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            "display=v$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          } else {
+            $tag = "${{ github.ref_name }}"
+            "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            "display=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          }
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build Tauri app and create release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ steps.version.outputs.tag }}
+          releaseName: 'Image Viewer ${{ steps.version.outputs.display }}'
+          releaseDraft: true
+          prerelease: ${{ contains(steps.version.outputs.tag, '-') }}
+          releaseBody: |
+            ## Image Viewer ${{ steps.version.outputs.display }}
+
+            Windows 图片查看器，支持多种图片格式、OCR 识别、幻灯片播放、批量处理等功能。
+
+            ### ✨ 功能特性
+            - 多格式支持：PNG、JPEG、BMP、GIF、WebP、TIFF、ICO、SVG
+            - OCR 文字识别（Windows 原生引擎）
+            - EXIF 元数据查看
+            - 幻灯片播放
+            - 批量格式转换 & 批量重命名
+            - 缩略图导航
+            - 键盘快捷键 & 鼠标拖拽操作
+
+            ### 📦 安装说明
+            下载 `ImageViewer_${{ steps.version.outputs.display }}_x64-setup.exe` 或 `ImageViewer_${{ steps.version.outputs.display }}_x64_en-US.msi` 运行安装。
+
+            ### 🔧 系统要求
+            - Windows 10/11 64位
+            - WebView2 Runtime（Windows 10+ 已内置）
