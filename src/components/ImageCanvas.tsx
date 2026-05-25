@@ -30,7 +30,6 @@ export function ImageCanvas({
   zoom,
   offset,
   selectionRange,
-  onZoom,
   onPan,
   onSelectionChange,
   zoomMode,
@@ -223,13 +222,42 @@ export function ImageCanvas({
   const handleWheelRef = useRef((_e: WheelEvent) => {});
   handleWheelRef.current = (e: WheelEvent) => {
     e.preventDefault();
+
+    const canvas = canvasRef.current;
+    const img = imageRef.current;
+    if (!canvas || !img) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    // Current zoom/offset values (captured by closure since ref is reassigned each render)
+    const currentZoom = zoom;
+    const currentOffset = offset;
+
+    // Image-space coordinate of the mouse cursor
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const imgX = (mx - cx - currentOffset.x) / currentZoom + img.width / 2;
+    const imgY = (my - cy - currentOffset.y) / currentZoom + img.height / 2;
+
+    // Calculate new zoom
     if (zoomMode === "fit") {
       const fitZoom = calculateFitZoom();
-      onSetZoomAbsolute(fitZoom);
       onSetZoomMode("free");
-    } else {
-      const delta = e.deltaY > 0 ? -1 : 1;
-      onZoom(delta);
+      onSetZoomAbsolute(fitZoom);
+    }
+
+    const delta = e.deltaY > 0 ? -1 : 1;
+    const newZoom = Math.min(10, Math.max(0.1, currentZoom + delta * 0.1));
+
+    if (newZoom !== currentZoom) {
+      // Adjust offset so the pixel under cursor stays in place
+      const newOffsetX = mx - cx - (imgX - img.width / 2) * newZoom;
+      const newOffsetY = my - cy - (imgY - img.height / 2) * newZoom;
+
+      onPan(newOffsetX - currentOffset.x, newOffsetY - currentOffset.y);
+      onSetZoomAbsolute(newZoom);
     }
   };
 
