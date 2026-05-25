@@ -47,7 +47,7 @@ export function SlideshowOverlay({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black select-none">
+    <div className="fixed inset-0 z-50 select-none">
       {/* Progress bar at top */}
       <div className="absolute top-0 left-0 right-0 h-0.5 bg-white/10 z-10">
         <div
