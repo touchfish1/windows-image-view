@@ -19,6 +19,7 @@ image = "0.25"
 base64 = "0.22"
 kamadak-exif = "0.5"
 winreg = "0.52"
+trash = "5"
 
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.58"

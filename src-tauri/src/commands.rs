@@ -131,3 +131,8 @@ pub fn open_default_apps() -> Result<(), String> {
 pub fn register_default_program() -> Result<(), String> {
     crate::file_assoc::register_as_default_program()
 }
+
+#[tauri::command]
+pub fn move_to_trash(path: String) -> Result<(), String> {
+    trash::delete(&path).map_err(|e| format!("Failed to move to trash: {}", e))
+}

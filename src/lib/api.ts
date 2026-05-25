@@ -77,3 +77,7 @@ export async function openDefaultApps(): Promise<void> {
 export async function registerDefaultProgram(): Promise<void> {
   return invoke<void>("register_default_program");
 }
+
+export async function moveToTrash(path: string): Promise<void> {
+  return invoke<void>("move_to_trash", { path });
+}

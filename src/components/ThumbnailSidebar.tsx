@@ -1,6 +1,14 @@
 import { useEffect, useRef } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { X, Image as ImageIcon } from "lucide-react";
+import { X, Image as ImageIcon, Trash2, Copy, FolderOpen } from "lucide-react";
+import { moveToTrash, showInFolder } from "@/lib/api";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 interface ThumbnailSidebarProps {
   currentPath: string | null;
@@ -102,18 +110,58 @@ function ThumbnailItem({ path, index, isSelected, onSelect }: ThumbnailItemProps
     return () => { cancelled = true; };
   }, [path]);
 
+  const handleDelete = async () => {
+    const name = path.split(/[\\/]/).pop() ?? '';
+    if (!window.confirm(`确定将 ${name} 移到回收站？`)) return;
+    try {
+      await moveToTrash(path);
+    } catch (e) {
+      console.error('Failed to delete:', e);
+    }
+  };
+
+  const handleCopyPath = () => {
+    navigator.clipboard.writeText(path);
+  };
+
+  const handleShowInFolder = () => {
+    showInFolder(path);
+  };
+
   return (
-    <button
-      onClick={() => onSelect(index)}
-      className={`w-full rounded-lg overflow-hidden transition-all duration-150 ${
-        isSelected
-          ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg shadow-primary/20"
-          : "opacity-70 hover:opacity-100 hover:ring-1 hover:ring-border"
-      }`}
-    >
-      <div className="bg-muted/50 flex items-center justify-center">
-        <canvas ref={canvasRef} className="max-w-full max-h-[90px]" />
-      </div>
-    </button>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <button
+          onClick={() => onSelect(index)}
+          className={`w-full rounded-lg overflow-hidden transition-all duration-150 ${
+            isSelected
+              ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg shadow-primary/20"
+              : "opacity-70 hover:opacity-100 hover:ring-1 hover:ring-border"
+          }`}
+        >
+          <div className="bg-muted/50 flex items-center justify-center">
+            <canvas ref={canvasRef} className="max-w-full max-h-[90px]" />
+          </div>
+        </button>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-44">
+        <ContextMenuItem onClick={handleShowInFolder}>
+          <FolderOpen className="h-3.5 w-3.5 mr-2" />
+          在文件管理器中显示
+        </ContextMenuItem>
+        <ContextMenuItem onClick={handleCopyPath}>
+          <Copy className="h-3.5 w-3.5 mr-2" />
+          复制文件路径
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          onClick={handleDelete}
+          className="text-destructive focus:text-destructive"
+        >
+          <Trash2 className="h-3.5 w-3.5 mr-2" />
+          移到回收站
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
