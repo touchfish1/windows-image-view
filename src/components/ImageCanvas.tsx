@@ -73,7 +73,7 @@ export function ImageCanvas({
     if (!canvas || !img) return 1;
     const scaleX = canvas.width / img.width;
     const scaleY = canvas.height / img.height;
-    return Math.min(scaleX, scaleY) * 0.9;
+    return Math.min(scaleX, scaleY) * 0.95;
   }, []);
 
   const screenToImage = useCallback(
@@ -300,21 +300,26 @@ export function ImageCanvas({
     const my = e.clientY - rect.top;
 
     // Current zoom/offset values (captured by closure since ref is reassigned each render)
-    const currentZoom = zoom;
-    const currentOffset = offset;
+    // Determine effective zoom/offset (fit mode uses calculated values, not stored state)
+    let currentZoom: number;
+    let currentOffset: { x: number; y: number };
+
+    if (zoomMode === "fit") {
+      const fitZoom = calculateFitZoom();
+      onSetZoomMode("free");
+      onSetZoomAbsolute(fitZoom);
+      currentZoom = fitZoom;
+      currentOffset = { x: 0, y: 0 };
+    } else {
+      currentZoom = zoom;
+      currentOffset = offset;
+    }
 
     // Image-space coordinate of the mouse cursor
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
     const imgX = (mx - cx - currentOffset.x) / currentZoom + img.width / 2;
     const imgY = (my - cy - currentOffset.y) / currentZoom + img.height / 2;
-
-    // Calculate new zoom
-    if (zoomMode === "fit") {
-      const fitZoom = calculateFitZoom();
-      onSetZoomMode("free");
-      onSetZoomAbsolute(fitZoom);
-    }
 
     const delta = e.deltaY > 0 ? -1 : 1;
     const newZoom = Math.min(10, Math.max(0.1, currentZoom + delta * 0.1));
