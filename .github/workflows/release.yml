@@ -31,10 +31,15 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install Rust
+      - name: Install Rust (Windows)
+        if: matrix.os == 'windows-latest'
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.os == 'windows-latest' && 'x86_64-pc-windows-msvc' }}
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install Rust (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
