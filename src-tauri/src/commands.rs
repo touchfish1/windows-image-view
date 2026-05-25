@@ -1,4 +1,4 @@
-use crate::{image_loader, ocr_engine};
+use crate::{image_loader, ocr_engine, paddle_ocr, tesseract_ocr};
 
 #[tauri::command]
 pub fn open_image(path: String) -> Result<image_loader::ImageInfo, String> {
@@ -6,9 +6,44 @@ pub fn open_image(path: String) -> Result<image_loader::ImageInfo, String> {
 }
 
 #[tauri::command]
-pub fn run_ocr(path: String, lang: Option<String>) -> Result<ocr_engine::OcrResult, String> {
+pub fn run_ocr(path: String, lang: Option<String>) -> Result<tesseract_ocr::OcrResult, String> {
     let lang = lang.unwrap_or_else(|| "zh-Hans".to_string());
-    ocr_engine::run_ocr(&path, &lang)
+
+    // 1. Try PaddleOCR-json (best accuracy, especially for Chinese)
+    if paddle_ocr::is_paddle_available() || paddle_ocr::is_rapid_available() {
+        match paddle_ocr::run_ocr(&path, &lang) {
+            Ok(result) if !result.blocks.is_empty() => return Ok(result),
+            Ok(_) => { /* PaddleOCR returned empty — fall through */ }
+            Err(e) => {
+                eprintln!("PaddleOCR failed, falling back: {e}");
+            }
+        }
+    }
+
+    // 2. Try Tesseract (good for non-Chinese text, lightweight)
+    if tesseract_ocr::is_available() {
+        match tesseract_ocr::run_ocr(&path, &lang) {
+            Ok(result) if !result.blocks.is_empty() => return Ok(result),
+            Ok(_) => { /* Tesseract returned empty — fall through */ }
+            Err(e) => {
+                eprintln!("Tesseract OCR failed, falling back: {e}");
+            }
+        }
+    }
+
+    // 3. Fall back to Windows OCR (universal fallback)
+    let win_result = ocr_engine::run_ocr(&path, &lang)?;
+    Ok(tesseract_ocr::OcrResult {
+        blocks: win_result.blocks.into_iter().map(|b| tesseract_ocr::OcrBlock {
+            text: b.text,
+            bbox_x: b.bbox_x,
+            bbox_y: b.bbox_y,
+            width: b.width,
+            height: b.height,
+        }).collect(),
+        full_text: win_result.full_text,
+        engine: "Windows OCR".into(),
+    })
 }
 
 #[tauri::command]

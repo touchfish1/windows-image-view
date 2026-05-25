@@ -33,7 +33,7 @@ export function OcrSidebar({
       case "running":
         return "OCR 识别中...";
       case "done":
-        return `识别完成 (${ocrResult?.blocks.length ?? 0} 个文字块)`;
+        return `识别完成 (${ocrResult?.blocks.length ?? 0} 个文字块) · ${ocrResult?.engine ?? ""}`;
       case "error":
         return "OCR 识别失败";
     }

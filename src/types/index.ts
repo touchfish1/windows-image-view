@@ -9,6 +9,7 @@ export interface OcrBlock {
 export interface OcrResult {
   blocks: OcrBlock[];
   full_text: string;
+  engine: string;
 }
 
 export interface ImageInfo {

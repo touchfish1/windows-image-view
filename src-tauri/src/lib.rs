@@ -1,6 +1,8 @@
 pub mod commands;
 pub mod image_loader;
 pub mod ocr_engine;
+pub mod tesseract_ocr;
+pub mod paddle_ocr;
 pub mod exif;
 pub mod batch;
 pub mod file_assoc;
@@ -9,6 +11,11 @@ pub mod file_assoc;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            tesseract_ocr::init(app);
+            paddle_ocr::init(app);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::open_image,
             commands::run_ocr,

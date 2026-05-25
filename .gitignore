@@ -32,3 +32,9 @@ docs/
 # Logs
 *.log
 npm-debug.log*
+
+# Bundled Tesseract OCR (run src-tauri/download-tesseract.ps1 to set up)
+src-tauri/tesseract/
+
+# Bundled PaddleOCR/RapidOCR (run src-tauri/download-paddleocr.ps1 to set up)
+src-tauri/paddleocr/
