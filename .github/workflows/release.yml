@@ -63,6 +63,12 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Download OCR engines
+        shell: pwsh
+        run: |
+          .\src-tauri\download-tesseract.ps1
+          .\src-tauri\download-paddleocr.ps1
+
       - name: Build Tauri app and create release
         uses: tauri-apps/tauri-action@v0
         env:
