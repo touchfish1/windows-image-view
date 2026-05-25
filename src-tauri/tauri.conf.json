@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/nicedoc/tauri-conf-schema/main/schema.json",
+  "$schema": "https://schema.tauri.app/config/2",
   "productName": "Image Viewer",
   "version": "0.1.0",
   "identifier": "com.imageviewer.app",
