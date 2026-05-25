@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import type { ImageViewerState, ZoomMode } from "@/types";
 import { openFileDialog, loadImage, runOcr, listImages } from "@/lib/api";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { joinSelectedText } from "@/lib/utils";
 
 const ZOOM_STEP = 0.1;
@@ -49,6 +50,8 @@ export function useImageViewer() {
         isFullscreen: false,
       });
 
+      preloadAdjacent(images, idx);
+
       runOcr(resolvedPath)
         .then((ocrResult) => {
           setState((prev) => ({
@@ -86,6 +89,9 @@ export function useImageViewer() {
         selectionRange: null,
         currentPath: path,
       }));
+
+      preloadAdjacent(paths, index);
+
       runOcr(path)
         .then((ocrResult) =>
           setState((prev) => ({ ...prev, ocrResult, ocrStatus: "done" }))
@@ -168,6 +174,20 @@ export function useImageViewer() {
   const setFullscreen = useCallback((fs: boolean) => {
     setState((prev) => ({ ...prev, isFullscreen: fs }));
   }, []);
+
+  function preloadAdjacent(images: string[], currentIdx: number): void {
+    const preload = (path: string) => {
+      const link = document.createElement("link");
+      link.rel = "prefetch";
+      link.href = convertFileSrc(path);
+      document.head.appendChild(link);
+      setTimeout(() => {
+        if (link.parentNode) document.head.removeChild(link);
+      }, 5000);
+    };
+    if (currentIdx > 0) preload(images[currentIdx - 1]);
+    if (currentIdx < images.length - 1) preload(images[currentIdx + 1]);
+  }
 
   return {
     state,
