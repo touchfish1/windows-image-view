@@ -40,3 +40,30 @@ pub fn get_file_size(path: String) -> Result<u64, String> {
         .map(|m| m.len())
         .map_err(|e| format!("Failed to read file metadata: {}", e))
 }
+
+#[tauri::command]
+pub fn read_exif(path: String) -> Result<crate::exif::ExifData, String> {
+    crate::exif::read_exif(&path)
+}
+
+#[tauri::command]
+pub fn convert_images(options: crate::batch::ConvertOptions) -> Result<crate::batch::ConvertResult, String> {
+    Ok(crate::batch::convert_images(options))
+}
+
+#[tauri::command]
+pub fn rename_files(items: Vec<crate::batch::RenameItem>) -> Result<crate::batch::RenameResult, String> {
+    Ok(crate::batch::rename_files(items))
+}
+
+#[tauri::command]
+pub fn preview_rename(files: Vec<String>, pattern: String, start_num: usize) -> Result<Vec<crate::batch::RenameItem>, String> {
+    Ok(crate::batch::preview_rename(files, &pattern, start_num))
+}
+
+#[tauri::command]
+pub fn save_image_as(source: String, dest: String) -> Result<(), String> {
+    std::fs::copy(&source, &dest)
+        .map_err(|e| format!("Failed to save image: {}", e))?;
+    Ok(())
+}

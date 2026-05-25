@@ -22,6 +22,36 @@ export type OcrStatus = "idle" | "running" | "done" | "error";
 
 export type ZoomMode = "fit" | "free";
 
+export interface ExifField {
+  label: string;
+  value: string;
+}
+
+export interface ExifData {
+  fields: ExifField[];
+}
+
+export interface ConvertOptions {
+  files: string[];
+  target_format: string;
+  output_dir: string;
+}
+
+export interface ConvertResult {
+  success: string[];
+  failed: string[];
+}
+
+export interface RenameItem {
+  old_path: string;
+  new_name: string;
+}
+
+export interface RenameResult {
+  success: [string, string][];
+  failed: [string, string][];
+}
+
 export interface ImageViewerState {
   imageInfo: ImageInfo | null;
   ocrResult: OcrResult | null;

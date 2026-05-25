@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { ImageInfo, OcrResult } from "@/types";
+import type { ImageInfo, OcrResult, ExifData, ConvertOptions, ConvertResult, RenameItem, RenameResult } from "@/types";
 
 export async function openFileDialog(): Promise<string | null> {
   const selected = await open({
@@ -32,4 +32,24 @@ export async function listImages(path: string): Promise<string[]> {
 
 export async function getFileSize(path: string): Promise<number> {
   return invoke<number>("get_file_size", { path });
+}
+
+export async function readExif(path: string): Promise<ExifData> {
+  return invoke<ExifData>("read_exif", { path });
+}
+
+export async function convertImages(options: ConvertOptions): Promise<ConvertResult> {
+  return invoke<ConvertResult>("convert_images", { options });
+}
+
+export async function renameFiles(items: RenameItem[]): Promise<RenameResult> {
+  return invoke<RenameResult>("rename_files", { items });
+}
+
+export async function previewRename(files: string[], pattern: string, startNum: number): Promise<RenameItem[]> {
+  return invoke<RenameItem[]>("preview_rename", { files, pattern, startNum });
+}
+
+export async function saveImageAs(source: string, dest: string): Promise<void> {
+  return invoke<void>("save_image_as", { source, dest });
 }
