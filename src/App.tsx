@@ -2,7 +2,7 @@ import { useImageViewer } from "@/hooks/useImageViewer";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { Toolbar } from "@/components/Toolbar";
 import { ImageCanvas } from "@/components/ImageCanvas";
-import { OcrSidebar } from "@/components/OcrSidebar";
+import { RightSidebar } from "@/components/RightSidebar";
 import { StatusBar } from "@/components/StatusBar";
 import { getFileSize } from "@/lib/api";
 import { formatFileSize } from "@/lib/utils";
@@ -129,11 +129,12 @@ function App() {
           onSetZoomMode={setZoomMode}
           onSetZoomAbsolute={setZoomAbsolute}
         />
-        <OcrSidebar
+        <RightSidebar
           ocrResult={state.ocrResult}
           ocrStatus={state.ocrStatus}
           selectionRange={state.selectionRange}
           onSelectionChange={setSelection}
+          imagePath={state.currentPath}
         />
       </div>
 
