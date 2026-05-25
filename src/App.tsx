@@ -1,3 +1,4 @@
+import { useAppUpdater } from "@/hooks/useAppUpdater";
 import { useImageViewer } from "@/hooks/useImageViewer";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useSlideshow } from "@/hooks/useSlideshow";
@@ -35,6 +36,8 @@ function App() {
     setFullscreen,
     selectedText,
   } = useImageViewer();
+
+  useAppUpdater();
 
   const [fileSize, setFileSize] = useState<string | null>(null);
   const [showThumbnails, setShowThumbnails] = useState(true);
