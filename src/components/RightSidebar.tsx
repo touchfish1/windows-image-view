@@ -9,6 +9,7 @@ interface RightSidebarProps {
   selectionRange: { start: number; end: number } | null;
   onSelectionChange: (range: { start: number; end: number } | null) => void;
   imagePath: string | null;
+  onClose?: () => void;
 }
 
 export function RightSidebar({
@@ -17,6 +18,7 @@ export function RightSidebar({
   selectionRange,
   onSelectionChange,
   imagePath,
+  onClose,
 }: RightSidebarProps) {
   const [activeTab, setActiveTab] = useState<"ocr" | "info">("ocr");
 
@@ -43,6 +45,15 @@ export function RightSidebar({
         >
           图片信息
         </button>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="px-2 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            title="关闭侧边栏"
+          >
+            ✕
+          </button>
+        )}
       </div>
       <div className="flex-1 overflow-hidden">
         {activeTab === "ocr" ? (

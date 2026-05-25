@@ -24,7 +24,9 @@ export function ImageContextMenu({
 }: ImageContextMenuProps) {
   return (
     <ContextMenu>
-      <ContextMenuTrigger>{children}</ContextMenuTrigger>
+      <ContextMenuTrigger asChild>
+        <div className="flex-1 flex">{children}</div>
+      </ContextMenuTrigger>
       <ContextMenuContent className="w-48">
         <ContextMenuItem disabled={!hasImage} onClick={onCopyImage}>
           <Copy className="h-4 w-4 mr-2" /> 复制图片

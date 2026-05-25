@@ -5,7 +5,7 @@ export interface SlideshowState {
   interval: number; // ms
 }
 
-export function useSlideshow(imageCount: number) {
+export function useSlideshow(_imageCount: number) {
   const [state, setState] = useState<SlideshowState>({
     isPlaying: false,
     interval: 3000,

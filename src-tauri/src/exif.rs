@@ -12,43 +12,47 @@ pub struct ExifField {
 }
 
 pub fn read_exif(path: &str) -> Result<ExifData, String> {
-    let file = std::fs::File::open(path)
-        .map_err(|e| format!("Failed to open file: {}", e))?;
-    let mut reader = std::io::BufReader::new(file);
-    let exif_reader = exif::Reader::new();
-    let exif = exif_reader
-        .read_from_container(&mut reader)
-        .map_err(|_| "No EXIF data found".to_string())?;
-
     let mut fields = Vec::new();
-    for f in exif.fields() {
-        let label = match f.tag {
-            exif::Tag::Make => "相机厂商".to_string(),
-            exif::Tag::Model => "相机型号".to_string(),
-            exif::Tag::ExposureTime => "曝光时间".to_string(),
-            exif::Tag::FNumber => "光圈".to_string(),
-            exif::Tag::ISOSpeed => "ISO".to_string(),
-            exif::Tag::FocalLength => "焦距".to_string(),
-            exif::Tag::DateTimeOriginal => "拍摄日期".to_string(),
-            exif::Tag::Software => "软件".to_string(),
-            _ => continue,
-        };
-        let value = f.display_value().to_string();
-        fields.push(ExifField { label, value });
-    }
 
-    // Add basic image info
+    // Always add basic image info
     if let Ok(meta) = std::fs::metadata(path) {
-        fields.insert(0, ExifField {
+        fields.push(ExifField {
             label: "文件大小".to_string(),
             value: format_file_size(meta.len()),
         });
     }
     if let Ok(dims) = image::image_dimensions(Path::new(path)) {
-        fields.insert(0, ExifField {
+        fields.push(ExifField {
             label: "图像尺寸".to_string(),
             value: format!("{} x {}", dims.0, dims.1),
         });
+    }
+
+    // Try to read EXIF metadata (may not exist for all images)
+    if let Ok(file) = std::fs::File::open(path) {
+        let mut reader = std::io::BufReader::new(file);
+        let exif_reader = exif::Reader::new();
+        if let Ok(exif) = exif_reader.read_from_container(&mut reader) {
+            for f in exif.fields() {
+                let label = match f.tag {
+                    exif::Tag::Make => "相机厂商".to_string(),
+                    exif::Tag::Model => "相机型号".to_string(),
+                    exif::Tag::ExposureTime => "曝光时间".to_string(),
+                    exif::Tag::FNumber => "光圈".to_string(),
+                    exif::Tag::ISOSpeed => "ISO".to_string(),
+                    exif::Tag::FocalLength => "焦距".to_string(),
+                    exif::Tag::DateTimeOriginal => "拍摄日期".to_string(),
+                    exif::Tag::Software => "软件".to_string(),
+                    _ => continue,
+                };
+                let value = f.display_value().to_string();
+                fields.push(ExifField { label, value });
+            }
+        }
+    }
+
+    if fields.is_empty() {
+        return Err("No image info found".to_string());
     }
 
     Ok(ExifData { fields })

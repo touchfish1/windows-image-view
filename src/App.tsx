@@ -14,8 +14,9 @@ import { SettingsDialog } from "@/components/SettingsDialog";
 import { getFileSize, saveImageAs, showInFolder } from "@/lib/api";
 import { formatFileSize } from "@/lib/utils";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { save } from "@tauri-apps/plugin-dialog";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 function App() {
   const {
@@ -36,11 +37,14 @@ function App() {
 
   const [fileSize, setFileSize] = useState<string | null>(null);
   const [showThumbnails, setShowThumbnails] = useState(true);
+  const [showRightSidebar, setShowRightSidebar] = useState(true);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [fileType, setFileType] = useState<string | null>(null);
   const [fileModified, setFileModified] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
 
   const { slideshowState, start: startSlideshow, stop: stopSlideshow, toggle: toggleSlideshow, setInterval: setSlideshowInterval, setOnNext } = useSlideshow(state.imageList.length);
 
@@ -73,22 +77,11 @@ function App() {
     return state.currentPath.split(/[\\/]/).pop() ?? null;
   }, [state.currentPath]);
 
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-      setFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setFullscreen(false);
-    }
-  }, [setFullscreen]);
-
-  useEffect(() => {
-    const onFsChange = () => {
-      setFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener("fullscreenchange", onFsChange);
-    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  const toggleFullscreen = useCallback(async () => {
+    const win = getCurrentWindow();
+    const isFullscreen = await win.isFullscreen();
+    await win.setFullscreen(!isFullscreen);
+    setFullscreen(!isFullscreen);
   }, [setFullscreen]);
 
   const handleZoomActual = useCallback(() => {
@@ -104,6 +97,7 @@ function App() {
     if (slideshowState.isPlaying) {
       stopSlideshow();
     }
+    getCurrentWindow().setFullscreen(false).catch(() => {});
     setFullscreen(false);
   }, [slideshowState.isPlaying, stopSlideshow, setFullscreen]);
 
@@ -159,7 +153,30 @@ function App() {
     }
   }, [selectedText]);
 
-  const handleDropImage = useCallback((e: React.DragEvent) => {
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current++;
+    setIsDragging(true);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current--;
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0;
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setIsDragging(false);
     const files = Array.from(e.dataTransfer.files);
     const imageFile = files.find(f => /\.(png|jpg|jpeg|bmp|gif|webp)$/i.test(f.name));
     if (!imageFile) return;
@@ -184,12 +201,20 @@ function App() {
         showThumbnails={showThumbnails}
         onToggleThumbnails={() => setShowThumbnails(!showThumbnails)}
         onSlideshow={startSlideshow}
+        showRightSidebar={showRightSidebar}
+        onToggleRightSidebar={() => setShowRightSidebar(!showRightSidebar)}
         onBatchConvert={() => setShowConvertDialog(true)}
         onBatchRename={() => setShowRenameDialog(true)}
         onSettings={() => setShowSettings(true)}
       />
 
-      <div className="flex-1 flex overflow-hidden relative">
+      <div
+        className="flex-1 flex overflow-hidden relative"
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
         <ThumbnailSidebar
           currentPath={state.currentPath}
           currentIndex={state.currentIndex}
@@ -216,14 +241,17 @@ function App() {
           onImageInfo={handleImageInfo}
           onCopyText={handleCopyText}
         />
-        <RightSidebar
-          ocrResult={state.ocrResult}
-          ocrStatus={state.ocrStatus}
-          selectionRange={state.selectionRange}
-          onSelectionChange={setSelection}
-          imagePath={state.currentPath}
-        />
-        <DropOverlay onDrop={handleDropImage} />
+        {showRightSidebar && (
+          <RightSidebar
+            ocrResult={state.ocrResult}
+            ocrStatus={state.ocrStatus}
+            selectionRange={state.selectionRange}
+            onSelectionChange={setSelection}
+            imagePath={state.currentPath}
+            onClose={() => setShowRightSidebar(false)}
+          />
+        )}
+        <DropOverlay visible={isDragging} />
       </div>
 
       <StatusBar

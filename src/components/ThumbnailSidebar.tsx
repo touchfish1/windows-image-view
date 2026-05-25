@@ -59,11 +59,13 @@ function ThumbnailItem({ path, index, isSelected, onSelect }: ThumbnailItemProps
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const img = new Image();
     img.onload = () => {
+      if (cancelled) return;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
@@ -76,7 +78,21 @@ function ThumbnailItem({ path, index, isSelected, onSelect }: ThumbnailItemProps
       canvas.height = h;
       ctx.drawImage(img, 0, 0, w, h);
     };
+    img.onerror = () => {
+      if (cancelled) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      canvas.width = 160;
+      canvas.height = 90;
+      ctx.fillStyle = "#333";
+      ctx.fillRect(0, 0, 160, 90);
+      ctx.fillStyle = "#999";
+      ctx.font = "12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("加载失败", 80, 50);
+    };
     img.src = convertFileSrc(path);
+    return () => { cancelled = true; };
   }, [path]);
 
   return (

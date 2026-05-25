@@ -166,7 +166,7 @@ export function ImageCanvas({
     return () => window.removeEventListener("resize", resize);
   }, [drawCanvas]);
 
-  const handleWheelRef = useRef((e: WheelEvent) => {});
+  const handleWheelRef = useRef((_e: WheelEvent) => {});
   handleWheelRef.current = (e: WheelEvent) => {
     e.preventDefault();
     if (zoomMode === "fit") {

@@ -8,6 +8,7 @@ import {
   Fullscreen,
   RotateCcw,
   PanelLeft,
+  PanelRight,
   Play,
   ImageDown,
   ScanText,
@@ -29,6 +30,8 @@ interface ToolbarProps {
   showThumbnails?: boolean;
   onToggleThumbnails?: () => void;
   onSlideshow?: () => void;
+  showRightSidebar?: boolean;
+  onToggleRightSidebar?: () => void;
   onBatchConvert?: () => void;
   onBatchRename?: () => void;
   onSettings?: () => void;
@@ -51,6 +54,8 @@ export function Toolbar({
   onSlideshow,
   onBatchConvert,
   onBatchRename,
+  showRightSidebar,
+  onToggleRightSidebar,
   onSettings,
 }: ToolbarProps) {
   return (
@@ -150,6 +155,16 @@ export function Toolbar({
         className="h-8 w-8"
       >
         <Play className="h-4 w-4" />
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onToggleRightSidebar}
+        title={showRightSidebar ? "隐藏侧边栏" : "显示侧边栏"}
+        className="h-8 w-8"
+      >
+        <PanelRight className="h-4 w-4" />
       </Button>
 
       <div className="w-px h-5 bg-border mx-1" />

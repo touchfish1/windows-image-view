@@ -91,28 +91,36 @@ mod platform {
             }
             full_text.push_str(&line_text);
 
+            // Compute line bounding box from its words
             let words = line.Words()
                 .map_err(|e| format!("Failed to get words: {}", e))?;
             let wn = words.Size()
                 .map_err(|_| "Failed to get word count".to_string())?;
 
+            let mut min_x = f64::MAX;
+            let mut min_y = f64::MAX;
+            let mut max_x = f64::MIN;
+            let mut max_y = f64::MIN;
+
             for j in 0..wn {
                 let word = words.GetAt(j)
                     .map_err(|e| format!("Failed to get word at {j}: {e}"))?;
-                let word_text = word.Text()
-                    .map_err(|e| format!("Failed to get word text: {}", e))?
-                    .to_string();
                 let rect = word.BoundingRect()
                     .map_err(|e| format!("Failed to get rect: {}", e))?;
 
-                blocks.push(OcrBlock {
-                    text: word_text,
-                    bbox_x: rect.X as f64,
-                    bbox_y: rect.Y as f64,
-                    width: rect.Width as f64,
-                    height: rect.Height as f64,
-                });
+                min_x = min_x.min(rect.X as f64);
+                min_y = min_y.min(rect.Y as f64);
+                max_x = max_x.max((rect.X + rect.Width) as f64);
+                max_y = max_y.max((rect.Y + rect.Height) as f64);
             }
+
+            blocks.push(OcrBlock {
+                text: line_text,
+                bbox_x: if min_x == f64::MAX { 0.0 } else { min_x },
+                bbox_y: if min_y == f64::MAX { 0.0 } else { min_y },
+                width: if max_x == f64::MIN { 0.0 } else { max_x - min_x },
+                height: if max_y == f64::MIN { 0.0 } else { max_y - min_y },
+            });
         }
 
         Ok(OcrResult { blocks, full_text })
