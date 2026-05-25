@@ -240,6 +240,7 @@ function App() {
           onShowInFolder={handleShowInFolder}
           onImageInfo={handleImageInfo}
           onCopyText={handleCopyText}
+          onToggleFullscreen={toggleFullscreen}
         />
         {showRightSidebar && (
           <RightSidebar

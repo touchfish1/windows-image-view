@@ -21,6 +21,7 @@ interface ImageCanvasProps {
   onShowInFolder?: () => void;
   onImageInfo?: () => void;
   onCopyText?: () => void;
+  onToggleFullscreen?: () => void;
 }
 
 export function ImageCanvas({
@@ -40,6 +41,7 @@ export function ImageCanvas({
   onShowInFolder,
   onImageInfo,
   onCopyText,
+  onToggleFullscreen,
 }: ImageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isPanning = useRef(false);
@@ -190,6 +192,12 @@ export function ImageCanvas({
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
+      // Double-click to toggle fullscreen (left button only)
+      if (e.button === 0 && e.detail === 2 && onToggleFullscreen) {
+        onToggleFullscreen();
+        return;
+      }
+
       const canvas = canvasRef.current;
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
@@ -211,7 +219,7 @@ export function ImageCanvas({
         lastPos.current = { x: e.clientX, y: e.clientY };
       }
     },
-    [hitTestBlock, onSelectionChange]
+    [hitTestBlock, onSelectionChange, onToggleFullscreen]
   );
 
   const handleMouseMove = useCallback(
