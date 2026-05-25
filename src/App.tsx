@@ -47,6 +47,7 @@ function App() {
   const [fileModified, setFileModified] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   const { slideshowState, start: startSlideshow, stop: stopSlideshow, toggle: toggleSlideshow, setInterval: setSlideshowInterval, setOnNext } = useSlideshow(state.imageList.length);
 
@@ -79,8 +80,17 @@ function App() {
       setShowThumbnails(s.showThumbnails);
       setShowRightSidebar(s.showRightSidebar);
       setRecentFiles(s.recentFiles);
+      if ((s as any).theme) {
+        setTheme((s as any).theme);
+      }
     });
   }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('light', theme === 'light');
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    saveWindowState({ theme } as any);
+  }, [theme]);
 
   const getFileName = useCallback(() => {
     if (!state.currentPath) return null;
@@ -259,6 +269,8 @@ function App() {
         onSettings={() => setShowSettings(true)}
         hasOcr={state.ocrResult !== null && state.ocrResult.full_text.length > 0}
         onExportOcr={handleExportOcr}
+        theme={theme}
+        onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
         recentFiles={recentFiles}
         onOpenFile={handleOpenRecent}
       />

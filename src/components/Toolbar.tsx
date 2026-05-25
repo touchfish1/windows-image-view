@@ -16,6 +16,8 @@ import {
   ScanText,
   Settings,
   FileText,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 interface ToolbarProps {
@@ -40,6 +42,8 @@ interface ToolbarProps {
   onSettings?: () => void;
   hasOcr?: boolean;
   onExportOcr?: () => void;
+  theme?: 'dark' | 'light';
+  onToggleTheme?: () => void;
   recentFiles?: string[];
   onOpenFile?: (path: string) => void;
 }
@@ -66,6 +70,8 @@ export function Toolbar({
   onSettings,
   hasOcr,
   onExportOcr,
+  theme,
+  onToggleTheme,
   recentFiles,
   onOpenFile,
 }: ToolbarProps) {
@@ -290,6 +296,17 @@ export function Toolbar({
       </Button>
 
       <div className="w-px h-5 bg-border/60 mx-0.5" />
+
+      {/* Theme toggle */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onToggleTheme}
+        title={theme === 'dark' ? '切换到浅色主题' : '切换到深色主题'}
+        className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-all duration-150"
+      >
+        {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </Button>
 
       {/* Settings */}
       <Button
