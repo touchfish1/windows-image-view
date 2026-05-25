@@ -268,6 +268,8 @@ function App() {
           onImageInfo={handleImageInfo}
           onCopyText={handleCopyText}
           onToggleFullscreen={toggleFullscreen}
+          imageFileName={getFileName()}
+          imageDimensions={state.imageInfo ? { width: state.imageInfo.width, height: state.imageInfo.height } : null}
         />
         {showRightSidebar && (
           <RightSidebar

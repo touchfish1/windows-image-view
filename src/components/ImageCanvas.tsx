@@ -22,6 +22,8 @@ interface ImageCanvasProps {
   onImageInfo?: () => void;
   onCopyText?: () => void;
   onToggleFullscreen?: () => void;
+  imageFileName?: string | null;
+  imageDimensions?: { width: number; height: number } | null;
 }
 
 export function ImageCanvas({
@@ -41,6 +43,8 @@ export function ImageCanvas({
   onImageInfo,
   onCopyText,
   onToggleFullscreen,
+  imageFileName,
+  imageDimensions,
 }: ImageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isPanning = useRef(false);
@@ -419,24 +423,49 @@ export function ImageCanvas({
   }
 
   return (
-    <ImageContextMenu
-      hasImage={imageInfo !== null}
-      hasSelection={selectionRange !== null}
-      onCopyImage={onCopyImage ?? (() => {})}
-      onSaveAs={onSaveAs ?? (() => {})}
-      onShowInFolder={onShowInFolder ?? (() => {})}
-      onImageInfo={onImageInfo ?? (() => {})}
-      onCopyText={onCopyText ?? (() => {})}
-    >
-      <canvas
-        ref={canvasRef}
-        className="flex-1 w-full h-full"
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
-        tabIndex={0}
-      />
-    </ImageContextMenu>
+    <div className="relative flex-1 overflow-hidden">
+      <ImageContextMenu
+        hasImage={imageInfo !== null}
+        hasSelection={selectionRange !== null}
+        onCopyImage={onCopyImage ?? (() => {})}
+        onSaveAs={onSaveAs ?? (() => {})}
+        onShowInFolder={onShowInFolder ?? (() => {})}
+        onImageInfo={onImageInfo ?? (() => {})}
+        onCopyText={onCopyText ?? (() => {})}
+      >
+        <canvas
+          ref={canvasRef}
+          className="flex-1 w-full h-full"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+          tabIndex={0}
+        />
+      </ImageContextMenu>
+
+      {/* HUD: image info overlay */}
+      {imageInfo && (
+        <div className="absolute bottom-3 left-3 pointer-events-none select-none z-10">
+          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-black/60 backdrop-blur-sm text-[11px] text-white/80 font-mono">
+            {imageFileName && (
+              <span className="max-w-[200px] truncate" title={imageFileName}>
+                {imageFileName}
+              </span>
+            )}
+            {imageFileName && imageDimensions && <span className="text-white/40">|</span>}
+            {imageDimensions && (
+              <span className="shrink-0">
+                {imageDimensions.width} × {imageDimensions.height}
+              </span>
+            )}
+            {(imageFileName || imageDimensions) && zoomMode && <span className="text-white/40">|</span>}
+            <span className="shrink-0">
+              {zoomMode === "fit" ? "适应窗口" : `${Math.round(zoom * 100)}%`}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
