@@ -25,6 +25,7 @@ interface ImageCanvasProps {
   onShowInFolder?: () => void;
   onImageInfo?: () => void;
   onCopyText?: () => void;
+  onExportOcr?: () => void;
   onToggleFullscreen?: () => void;
   imageFileName?: string | null;
   imageDimensions?: { width: number; height: number } | null;
@@ -46,6 +47,7 @@ export function ImageCanvas({
   onShowInFolder,
   onImageInfo,
   onCopyText,
+  onExportOcr,
   onToggleFullscreen,
   imageFileName,
   imageDimensions,
@@ -489,11 +491,13 @@ export function ImageCanvas({
       <ImageContextMenu
         hasImage={imageInfo !== null}
         hasSelection={selectionRange !== null}
+        hasOcr={ocrBlocks.length > 0}
         onCopyImage={onCopyImage ?? (() => {})}
         onSaveAs={onSaveAs ?? (() => {})}
         onShowInFolder={onShowInFolder ?? (() => {})}
         onImageInfo={onImageInfo ?? (() => {})}
         onCopyText={onCopyText ?? (() => {})}
+        onExportOcr={onExportOcr ?? (() => {})}
       >
         <canvas
           ref={canvasRef}

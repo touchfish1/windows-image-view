@@ -11,7 +11,7 @@ import { DropOverlay } from "@/components/DropOverlay";
 import { BatchConvertDialog } from "@/components/BatchConvertDialog";
 import { BatchRenameDialog } from "@/components/BatchRenameDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
-import { getFileSize, saveImageAs, showInFolder } from "@/lib/api";
+import { getFileSize, saveImageAs, showInFolder, saveTextFile } from "@/lib/api";
 import { formatFileSize } from "@/lib/utils";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -163,6 +163,21 @@ function App() {
     }
   }, [selectedText]);
 
+  const handleExportOcr = useCallback(async () => {
+    if (!state.ocrResult?.full_text) return;
+    try {
+      const dest = await save({
+        filters: [{ name: "Text", extensions: ["txt"] }],
+        defaultPath: state.currentPath?.replace(/\.\w+$/, '.txt'),
+      });
+      if (dest) {
+        await saveTextFile(dest, state.ocrResult.full_text);
+      }
+    } catch (e) {
+      console.error("Export OCR failed:", e);
+    }
+  }, [state.ocrResult, state.currentPath]);
+
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     dragCounter.current++;
@@ -242,6 +257,8 @@ function App() {
         onBatchConvert={() => setShowConvertDialog(true)}
         onBatchRename={() => setShowRenameDialog(true)}
         onSettings={() => setShowSettings(true)}
+        hasOcr={state.ocrResult !== null && state.ocrResult.full_text.length > 0}
+        onExportOcr={handleExportOcr}
         recentFiles={recentFiles}
         onOpenFile={handleOpenRecent}
       />
@@ -278,6 +295,7 @@ function App() {
           onShowInFolder={handleShowInFolder}
           onImageInfo={handleImageInfo}
           onCopyText={handleCopyText}
+          onExportOcr={handleExportOcr}
           onToggleFullscreen={toggleFullscreen}
           imageFileName={getFileName()}
           imageDimensions={state.imageInfo ? { width: state.imageInfo.width, height: state.imageInfo.height } : null}

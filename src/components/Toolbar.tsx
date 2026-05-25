@@ -15,6 +15,7 @@ import {
   ImageDown,
   ScanText,
   Settings,
+  FileText,
 } from "lucide-react";
 
 interface ToolbarProps {
@@ -37,6 +38,8 @@ interface ToolbarProps {
   onBatchConvert?: () => void;
   onBatchRename?: () => void;
   onSettings?: () => void;
+  hasOcr?: boolean;
+  onExportOcr?: () => void;
   recentFiles?: string[];
   onOpenFile?: (path: string) => void;
 }
@@ -61,6 +64,8 @@ export function Toolbar({
   showRightSidebar,
   onToggleRightSidebar,
   onSettings,
+  hasOcr,
+  onExportOcr,
   recentFiles,
   onOpenFile,
 }: ToolbarProps) {
@@ -271,6 +276,20 @@ export function Toolbar({
       </div>
 
       <div className="flex-1" />
+
+      {/* OCR Export */}
+      <Button
+        variant="ghost"
+        size="icon"
+        disabled={!hasImage || !hasOcr}
+        onClick={onExportOcr}
+        title="导出 OCR 文本"
+        className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-all duration-150 disabled:opacity-30"
+      >
+        <FileText className="h-4 w-4" />
+      </Button>
+
+      <div className="w-px h-5 bg-border/60 mx-0.5" />
 
       {/* Settings */}
       <Button

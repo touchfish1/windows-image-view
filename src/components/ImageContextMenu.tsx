@@ -5,22 +5,24 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { Copy, Save, FolderOpen, Info } from "lucide-react";
+import { Copy, Save, FolderOpen, Info, FileText } from "lucide-react";
 
 interface ImageContextMenuProps {
   children: React.ReactNode;
   hasImage: boolean;
   hasSelection: boolean;
+  hasOcr: boolean;
   onCopyImage: () => void;
   onSaveAs: () => void;
   onShowInFolder: () => void;
   onImageInfo: () => void;
   onCopyText: () => void;
+  onExportOcr: () => void;
 }
 
 export function ImageContextMenu({
-  children, hasImage, hasSelection,
-  onCopyImage, onSaveAs, onShowInFolder, onImageInfo, onCopyText,
+  children, hasImage, hasSelection, hasOcr,
+  onCopyImage, onSaveAs, onShowInFolder, onImageInfo, onCopyText, onExportOcr,
 }: ImageContextMenuProps) {
   return (
     <ContextMenu>
@@ -41,6 +43,10 @@ export function ImageContextMenu({
         <ContextMenuItem disabled={!hasSelection} onClick={onCopyText}>
           复制 OCR 文本
         </ContextMenuItem>
+        <ContextMenuItem disabled={!hasOcr} onClick={onExportOcr}>
+          <FileText className="h-4 w-4 mr-2" /> 导出 OCR 文本
+        </ContextMenuItem>
+        <ContextMenuSeparator />
         <ContextMenuItem disabled={!hasImage} onClick={onImageInfo}>
           <Info className="h-4 w-4 mr-2" /> 图片信息
         </ContextMenuItem>

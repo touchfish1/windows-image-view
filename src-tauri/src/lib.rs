@@ -32,6 +32,7 @@ pub fn run() {
             commands::open_default_apps,
             commands::register_default_program,
             commands::move_to_trash,
+            commands::write_text_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

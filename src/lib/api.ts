@@ -81,3 +81,7 @@ export async function registerDefaultProgram(): Promise<void> {
 export async function moveToTrash(path: string): Promise<void> {
   return invoke<void>("move_to_trash", { path });
 }
+
+export async function saveTextFile(path: string, content: string): Promise<void> {
+  return invoke<void>("write_text_file", { path, content });
+}
