@@ -4,6 +4,10 @@ import { joinSelectedText } from "@/lib/utils";
 import { ImageContextMenu } from "./ImageContextMenu";
 import { ImageIcon, FolderOpen, MousePointer2, Keyboard } from "lucide-react";
 
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
 interface ImageCanvasProps {
   imageInfo: ImageInfo | null;
   ocrBlocks: OcrBlock[];
@@ -53,6 +57,11 @@ export function ImageCanvas({
   const dragStartBlock = useRef(-1);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const animationFrameRef = useRef<number>(0);
+  const transitionRef = useRef<{
+    snapshot: ImageData;
+    startTime: number;
+    newImg: HTMLImageElement;
+  } | null>(null);
   const ocrBlocksRef = useRef(ocrBlocks);
   ocrBlocksRef.current = ocrBlocks;
 
@@ -98,13 +107,34 @@ export function ImageCanvas({
   useEffect(() => {
     if (!imageInfo) {
       imageRef.current = null;
+      transitionRef.current = null;
       return;
     }
     const img = new Image();
     img.src = imageInfo.data;
     img.onload = () => {
       cancelAnimationFrame(animationFrameRef.current);
+
+      // Capture snapshot of current canvas (old image) if an image is already displayed
+      const canvas = canvasRef.current;
+      let snapshot: ImageData | null = null;
+      if (canvas && imageRef.current) {
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        }
+      }
+
       imageRef.current = img;
+
+      if (snapshot) {
+        transitionRef.current = {
+          snapshot,
+          startTime: performance.now(),
+          newImg: img,
+        };
+      }
+
       drawCanvas();
     };
     img.onerror = () => {
@@ -158,6 +188,38 @@ export function ImageCanvas({
         ctx.fillText("加载中...", cx, cy + 8);
       }
       return;
+    }
+
+    // Handle image transition animation (crossfade)
+    const trans = transitionRef.current;
+    if (trans) {
+      const elapsed = performance.now() - trans.startTime;
+      const progress = Math.min(elapsed / 200, 1);
+
+      // Draw the snapshot (old image) with decreasing alpha
+      ctx.putImageData(trans.snapshot, 0, 0);
+
+      // Draw the new image with increasing alpha on top
+      ctx.globalAlpha = easeOutCubic(progress);
+      const effectiveZoom = zoomMode === "fit" ? calculateFitZoom() : zoom;
+      const effectiveOffset = zoomMode === "fit" ? { x: 0, y: 0 } : offset;
+      ctx.save();
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      ctx.translate(cx + effectiveOffset.x, cy + effectiveOffset.y);
+      ctx.scale(effectiveZoom, effectiveZoom);
+      ctx.translate(-img.width / 2, -img.height / 2);
+      ctx.drawImage(img, 0, 0);
+      ctx.restore();
+      ctx.globalAlpha = 1;
+
+      if (progress >= 1) {
+        transitionRef.current = null;
+        // Fall through to normal rendering below
+      } else {
+        requestAnimationFrame(drawCanvas);
+        return;
+      }
     }
 
     ctx.fillStyle = "#1a1a1a";
