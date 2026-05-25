@@ -19,12 +19,16 @@ pub fn get_image_info(path: &str) -> Result<ImageInfo, String> {
     let width = img.width();
     let height = img.height();
 
-    // Resize for display if too large (max 4096px on either dimension)
+    // Resize for display if too large (max 4096px on either dimension, preserves aspect ratio)
     let display_img = if width > 4096 || height > 4096 {
-        img.resize(4096, 4096, image::imageops::FilterType::Lanczos3)
+        img.thumbnail(4096, 4096)
     } else {
         img
     };
+
+    // Return actual display dimensions (may differ from original after resize)
+    let display_width = display_img.width();
+    let display_height = display_img.height();
 
     // Encode to JPEG base64 for transport to frontend
     let mut buf = std::io::Cursor::new(Vec::new());
@@ -37,8 +41,8 @@ pub fn get_image_info(path: &str) -> Result<ImageInfo, String> {
     );
 
     Ok(ImageInfo {
-        width,
-        height,
+        width: display_width,
+        height: display_height,
         data: format!("data:image/jpeg;base64,{}", b64),
     })
 }
