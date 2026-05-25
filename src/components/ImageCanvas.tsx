@@ -425,6 +425,12 @@ export function ImageCanvas({
         const dx = e.clientX - lastPos.current.x;
         const dy = e.clientY - lastPos.current.y;
         lastPos.current = { x: e.clientX, y: e.clientY };
+        // Update live ref immediately and redraw for real-time feedback
+        liveOffsetRef.current = {
+          x: liveOffsetRef.current.x + dx,
+          y: liveOffsetRef.current.y + dy,
+        };
+        drawCanvas();
         onPan(dx, dy);
       }
     },
