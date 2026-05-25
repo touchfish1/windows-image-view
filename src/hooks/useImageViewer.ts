@@ -172,6 +172,7 @@ export function useImageViewer() {
   return {
     state,
     openImage,
+    navigateTo,
     navigateNext,
     navigatePrev,
     handleZoom,

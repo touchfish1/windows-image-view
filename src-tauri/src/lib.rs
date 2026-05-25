@@ -18,6 +18,7 @@ pub fn run() {
             commands::rename_files,
             commands::preview_rename,
             commands::save_image_as,
+            commands::show_in_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

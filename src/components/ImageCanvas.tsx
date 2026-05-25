@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback } from "react";
 import type { ImageInfo, OcrBlock } from "@/types";
 import { joinSelectedText } from "@/lib/utils";
+import { ImageContextMenu } from "./ImageContextMenu";
 
 interface ImageCanvasProps {
   imageInfo: ImageInfo | null;
@@ -14,6 +15,11 @@ interface ImageCanvasProps {
   zoomMode: "fit" | "free";
   onSetZoomMode: (mode: "fit" | "free") => void;
   onSetZoomAbsolute: (zoom: number) => void;
+  onCopyImage?: () => void;
+  onSaveAs?: () => void;
+  onShowInFolder?: () => void;
+  onImageInfo?: () => void;
+  onCopyText?: () => void;
 }
 
 export function ImageCanvas({
@@ -28,6 +34,11 @@ export function ImageCanvas({
   zoomMode,
   onSetZoomMode,
   onSetZoomAbsolute,
+  onCopyImage,
+  onSaveAs,
+  onShowInFolder,
+  onImageInfo,
+  onCopyText,
 }: ImageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isPanning = useRef(false);
@@ -277,14 +288,24 @@ export function ImageCanvas({
   }, [ocrBlocks, selectionRange]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="flex-1 w-full h-full"
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseLeave}
-      tabIndex={0}
-    />
+    <ImageContextMenu
+      hasImage={imageInfo !== null}
+      hasSelection={selectionRange !== null}
+      onCopyImage={onCopyImage ?? (() => {})}
+      onSaveAs={onSaveAs ?? (() => {})}
+      onShowInFolder={onShowInFolder ?? (() => {})}
+      onImageInfo={onImageInfo ?? (() => {})}
+      onCopyText={onCopyText ?? (() => {})}
+    >
+      <canvas
+        ref={canvasRef}
+        className="flex-1 w-full h-full"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+        tabIndex={0}
+      />
+    </ImageContextMenu>
   );
 }

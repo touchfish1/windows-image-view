@@ -67,3 +67,16 @@ pub fn save_image_as(source: String, dest: String) -> Result<(), String> {
         .map_err(|e| format!("Failed to save image: {}", e))?;
     Ok(())
 }
+
+#[tauri::command]
+pub fn show_in_folder(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg("/select,")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open explorer: {}", e))?;
+    }
+    Ok(())
+}

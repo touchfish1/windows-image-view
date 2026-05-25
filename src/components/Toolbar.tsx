@@ -7,6 +7,10 @@ import {
   Minimize2,
   Fullscreen,
   RotateCcw,
+  PanelLeft,
+  Play,
+  ImageDown,
+  ScanText,
 } from "lucide-react";
 
 interface ToolbarProps {
@@ -21,6 +25,11 @@ interface ToolbarProps {
   hasNext: boolean;
   zoomMode: "fit" | "free";
   isFullscreen: boolean;
+  showThumbnails?: boolean;
+  onToggleThumbnails?: () => void;
+  onSlideshow?: () => void;
+  onBatchConvert?: () => void;
+  onBatchRename?: () => void;
 }
 
 export function Toolbar({
@@ -35,6 +44,11 @@ export function Toolbar({
   hasNext,
   zoomMode,
   isFullscreen,
+  showThumbnails,
+  onToggleThumbnails,
+  onSlideshow,
+  onBatchConvert,
+  onBatchRename,
 }: ToolbarProps) {
   return (
     <div className="flex items-center gap-1 px-2 py-1.5 border-b border-border bg-card">
@@ -110,6 +124,53 @@ export function Toolbar({
         className="h-8 w-8"
       >
         <Fullscreen className="h-4 w-4" />
+      </Button>
+
+      <div className="w-px h-5 bg-border mx-1" />
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onToggleThumbnails}
+        title={showThumbnails ? "隐藏缩略图" : "显示缩略图"}
+        className="h-8 w-8"
+      >
+        <PanelLeft className="h-4 w-4" />
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        disabled={!hasImage}
+        onClick={onSlideshow}
+        title="幻灯片 (F5)"
+        className="h-8 w-8"
+      >
+        <Play className="h-4 w-4" />
+      </Button>
+
+      <div className="w-px h-5 bg-border mx-1" />
+
+      <Button
+        variant="ghost"
+        size="icon"
+        disabled={!hasImage}
+        onClick={onBatchConvert}
+        title="批量格式转换"
+        className="h-8 w-8"
+      >
+        <ImageDown className="h-4 w-4" />
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        disabled={!hasImage}
+        onClick={onBatchRename}
+        title="批量重命名"
+        className="h-8 w-8"
+      >
+        <ScanText className="h-4 w-4" />
       </Button>
     </div>
   );

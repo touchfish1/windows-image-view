@@ -53,3 +53,7 @@ export async function previewRename(files: string[], pattern: string, startNum: 
 export async function saveImageAs(source: string, dest: string): Promise<void> {
   return invoke<void>("save_image_as", { source, dest });
 }
+
+export async function showInFolder(path: string): Promise<void> {
+  return invoke<void>("show_in_folder", { path });
+}

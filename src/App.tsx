@@ -1,17 +1,26 @@
 import { useImageViewer } from "@/hooks/useImageViewer";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useSlideshow } from "@/hooks/useSlideshow";
 import { Toolbar } from "@/components/Toolbar";
 import { ImageCanvas } from "@/components/ImageCanvas";
 import { RightSidebar } from "@/components/RightSidebar";
 import { StatusBar } from "@/components/StatusBar";
-import { getFileSize } from "@/lib/api";
+import { ThumbnailSidebar } from "@/components/ThumbnailSidebar";
+import { SlideshowOverlay } from "@/components/SlideshowOverlay";
+import { DropOverlay } from "@/components/DropOverlay";
+import { BatchConvertDialog } from "@/components/BatchConvertDialog";
+import { BatchRenameDialog } from "@/components/BatchRenameDialog";
+import { getFileSize, saveImageAs, showInFolder } from "@/lib/api";
 import { formatFileSize } from "@/lib/utils";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useState } from "react";
 
 function App() {
   const {
     state,
     openImage,
+    navigateTo,
     handleZoom,
     handlePan,
     resetView,
@@ -21,9 +30,17 @@ function App() {
     navigateNext,
     navigatePrev,
     setFullscreen,
+    selectedText,
   } = useImageViewer();
 
   const [fileSize, setFileSize] = useState<string | null>(null);
+  const [showThumbnails, setShowThumbnails] = useState(true);
+  const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [fileType, setFileType] = useState<string | null>(null);
+  const [fileModified, setFileModified] = useState<string | null>(null);
+
+  const { slideshowState, start: startSlideshow, stop: stopSlideshow, toggle: toggleSlideshow, setInterval: setSlideshowInterval, setOnNext } = useSlideshow(state.imageList.length);
 
   useEffect(() => {
     if (!state.currentPath) {
@@ -34,6 +51,20 @@ function App() {
       .then((bytes) => setFileSize(formatFileSize(bytes)))
       .catch(() => setFileSize(null));
   }, [state.currentPath]);
+
+  useEffect(() => {
+    if (!state.currentPath) {
+      setFileType(null);
+      setFileModified(null);
+      return;
+    }
+    const ext = state.currentPath.split('.').pop()?.toLowerCase() ?? null;
+    setFileType(ext);
+  }, [state.currentPath]);
+
+  useEffect(() => {
+    setOnNext(navigateNext);
+  }, [setOnNext, navigateNext]);
 
   const getFileName = useCallback(() => {
     if (!state.currentPath) return null;
@@ -68,8 +99,11 @@ function App() {
   }, [setZoomMode]);
 
   const handleEscape = useCallback(() => {
+    if (slideshowState.isPlaying) {
+      stopSlideshow();
+    }
     setFullscreen(false);
-  }, [setFullscreen]);
+  }, [slideshowState.isPlaying, stopSlideshow, setFullscreen]);
 
   useKeyboardShortcuts({
     onNavigateNext: navigateNext,
@@ -81,13 +115,49 @@ function App() {
     onEscape: handleEscape,
   });
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
+  const handleCopyImage = useCallback(async () => {
+    if (!state.currentPath) return;
+    try {
+      const response = await fetch(convertFileSrc(state.currentPath));
+      const blob = await response.blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({ [blob.type]: blob }),
+      ]);
+    } catch (e) {
+      console.error("Failed to copy image:", e);
+    }
+  }, [state.currentPath]);
+
+  const handleSaveAs = useCallback(async () => {
+    if (!state.currentPath) return;
+    const dest = await save({
+      filters: [{ name: "Image", extensions: ["png", "jpg", "webp", "bmp"] }],
+    });
+    if (dest) {
+      try { await saveImageAs(state.currentPath, dest); }
+      catch (e) { console.error("Save failed:", e); }
+    }
+  }, [state.currentPath]);
+
+  const handleShowInFolder = useCallback(async () => {
+    if (!state.currentPath) return;
+    try { await showInFolder(state.currentPath); }
+    catch (e) { console.error("Show in folder failed:", e); }
+  }, [state.currentPath]);
+
+  const handleImageInfo = useCallback(() => {
+    // Right sidebar has an info tab - already accessible via tab click
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
+  const handleCopyText = useCallback(async () => {
+    const text = selectedText();
+    if (text) {
+      try { await navigator.clipboard.writeText(text); }
+      catch (e) { console.error("Failed to copy text:", e); }
+    }
+  }, [selectedText]);
+
+  const handleDropImage = useCallback((e: React.DragEvent) => {
     const files = Array.from(e.dataTransfer.files);
     const imageFile = files.find(f => /\.(png|jpg|jpeg|bmp|gif|webp)$/i.test(f.name));
     if (!imageFile) return;
@@ -96,11 +166,7 @@ function App() {
   }, [openImage]);
 
   return (
-    <div
-      className="h-screen w-screen flex flex-col bg-background text-foreground overflow-hidden"
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-    >
+    <div className="h-screen w-screen flex flex-col bg-background text-foreground overflow-hidden">
       <Toolbar
         onOpen={openImage}
         onResetView={resetView}
@@ -113,9 +179,22 @@ function App() {
         hasNext={state.currentIndex < state.imageList.length - 1}
         zoomMode={state.zoomMode}
         isFullscreen={state.isFullscreen}
+        showThumbnails={showThumbnails}
+        onToggleThumbnails={() => setShowThumbnails(!showThumbnails)}
+        onSlideshow={startSlideshow}
+        onBatchConvert={() => setShowConvertDialog(true)}
+        onBatchRename={() => setShowRenameDialog(true)}
       />
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        <ThumbnailSidebar
+          currentPath={state.currentPath}
+          currentIndex={state.currentIndex}
+          imageList={state.imageList}
+          onNavigate={navigateTo}
+          isOpen={showThumbnails}
+          onToggle={() => setShowThumbnails(!showThumbnails)}
+        />
         <ImageCanvas
           imageInfo={state.imageInfo}
           ocrBlocks={state.ocrResult?.blocks ?? []}
@@ -128,6 +207,11 @@ function App() {
           zoomMode={state.zoomMode}
           onSetZoomMode={setZoomMode}
           onSetZoomAbsolute={setZoomAbsolute}
+          onCopyImage={handleCopyImage}
+          onSaveAs={handleSaveAs}
+          onShowInFolder={handleShowInFolder}
+          onImageInfo={handleImageInfo}
+          onCopyText={handleCopyText}
         />
         <RightSidebar
           ocrResult={state.ocrResult}
@@ -136,6 +220,7 @@ function App() {
           onSelectionChange={setSelection}
           imagePath={state.currentPath}
         />
+        <DropOverlay onDrop={handleDropImage} />
       </div>
 
       <StatusBar
@@ -154,6 +239,33 @@ function App() {
         fileSize={fileSize}
         imageIndex={state.currentIndex}
         totalImages={state.imageList.length}
+        fileType={fileType}
+        fileModified={fileModified}
+      />
+
+      {slideshowState.isPlaying && (
+        <SlideshowOverlay
+          isPlaying={slideshowState.isPlaying}
+          interval={slideshowState.interval}
+          imageCount={state.imageList.length}
+          currentIndex={state.currentIndex}
+          onPrev={navigatePrev}
+          onNext={navigateNext}
+          onToggle={toggleSlideshow}
+          onSetInterval={setSlideshowInterval}
+          onStop={stopSlideshow}
+        />
+      )}
+
+      <BatchConvertDialog
+        imageList={state.imageList}
+        isOpen={showConvertDialog}
+        onClose={() => setShowConvertDialog(false)}
+      />
+      <BatchRenameDialog
+        imageList={state.imageList}
+        isOpen={showRenameDialog}
+        onClose={() => setShowRenameDialog(false)}
       />
     </div>
   );
