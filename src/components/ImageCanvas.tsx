@@ -155,6 +155,18 @@ export function ImageCanvas({
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    // Ensure canvas fills its parent
+    const parent = canvas.parentElement;
+    if (parent) {
+      const pw = parent.clientWidth;
+      const ph = parent.clientHeight;
+      if (pw > 0 && ph > 0 && (canvas.width !== pw || canvas.height !== ph)) {
+        canvas.width = pw;
+        canvas.height = ph;
+      }
+    }
+
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
@@ -234,8 +246,8 @@ export function ImageCanvas({
     ctx.fillStyle = "#1a1a1a";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const effectiveZoom = zoomMode === "fit" ? calculateFitZoom() : zoom;
-    const effectiveOffset = zoomMode === "fit" ? { x: 0, y: 0 } : offset;
+    const effectiveZoom = liveZoomModeRef.current === "fit" ? calculateFitZoom() : liveZoomRef.current;
+    const effectiveOffset = liveZoomModeRef.current === "fit" ? { x: 0, y: 0 } : liveOffsetRef.current;
 
     ctx.save();
     const cx = canvas.width / 2;
@@ -500,7 +512,7 @@ export function ImageCanvas({
   }
 
   return (
-    <div className="relative flex-1 overflow-hidden">
+    <div className="relative flex-1 flex overflow-hidden">
       <ImageContextMenu
         hasImage={imageInfo !== null}
         hasSelection={selectionRange !== null}
