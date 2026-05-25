@@ -9,7 +9,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::open_image,
             commands::run_ocr,
-            commands::get_image_bytes,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

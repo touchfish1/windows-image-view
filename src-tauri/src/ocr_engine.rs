@@ -15,66 +15,145 @@ pub struct OcrResult {
     pub full_text: String,
 }
 
-pub fn run_ocr(image_path: &str, lang: &str) -> Result<OcrResult, String> {
-    // Chain the builder methods since they take self by value
-    let mut tesseract = tesseract::Tesseract::new(None, Some(lang))
-        .map_err(|e| format!("Tesseract init failed: {}", e))?
-        .set_image(image_path)
-        .map_err(|e| format!("Tesseract set_image failed: {}", e))?
-        .recognize()
-        .map_err(|e| format!("Tesseract recognize failed: {}", e))?;
+// ---------------------------------------------------------------------------
+// Windows — Windows.Media.Ocr
+// ---------------------------------------------------------------------------
+#[cfg(target_os = "windows")]
+mod platform {
+    use super::{OcrBlock, OcrResult};
+    use windows::Graphics::Imaging::{BitmapDecoder, BitmapPixelFormat, SoftwareBitmap};
+    use windows::Media::Ocr::OcrEngine;
+    use windows::Storage::FileAccessMode;
+    use windows::Storage::Streams::FileRandomAccessStream;
 
-    let full_text = tesseract
-        .get_text()
-        .map_err(|e| format!("Tesseract get_text failed: {}", e))?;
+    pub(super) fn run_ocr(path: &str, _lang: &str) -> Result<OcrResult, String> {
+        let path: windows::core::HSTRING = path.into();
 
-    // Parse TSV output to get word-level bounding boxes
-    // TSV columns: level, page_num, block_num, par_num, line_num, word_num,
-    //              left, top, width, height, conf, text
-    let tsv = tesseract
-        .get_tsv_text(0)
-        .map_err(|e| format!("Tesseract get_tsv_text failed: {}", e))?;
+        // Open file as random-access stream (blocking on WinRT async)
+        let stream: windows::Storage::Streams::IRandomAccessStream =
+            FileRandomAccessStream::OpenAsync(&path, FileAccessMode::Read)
+                .map_err(|e| format!("Failed to create open operation: {}", e))?
+                .get()
+                .map_err(|e| format!("Failed to open file: {}", e))?;
 
-    let blocks = parse_tsv_blocks(&tsv);
+        // Decode image → SoftwareBitmap
+        let decoder: BitmapDecoder =
+            BitmapDecoder::CreateAsync(&stream)
+                .map_err(|e| format!("Failed to create decoder: {}", e))?
+                .get()
+                .map_err(|e| format!("Failed to await decoder: {}", e))?;
 
-    Ok(OcrResult { blocks, full_text })
+        let bitmap: SoftwareBitmap =
+            decoder.GetSoftwareBitmapAsync()
+                .map_err(|e| format!("Failed to get bitmap: {}", e))?
+                .get()
+                .map_err(|e| format!("Failed to await bitmap: {}", e))?;
+
+        // Convert to Bgra8 if needed — OcrEngine prefers this format
+        let pf = bitmap.BitmapPixelFormat()
+            .map_err(|e| format!("Failed to get pixel format: {}", e))?;
+        let ocr_bitmap = if pf != BitmapPixelFormat::Bgra8 {
+            SoftwareBitmap::Convert(&bitmap, BitmapPixelFormat::Bgra8)
+                .map_err(|e| format!("Failed to convert bitmap: {}", e))?
+        } else {
+            bitmap
+        };
+
+        // Create OCR engine (uses user-profile languages)
+        let engine = OcrEngine::TryCreateFromUserProfileLanguages()
+            .map_err(|e| format!("Failed to create OCR engine: {}", e))?;
+
+        // Recognise (blocking)
+        let result =
+            engine.RecognizeAsync(&ocr_bitmap)
+                .map_err(|e| format!("OCR recognition failed: {}", e))?
+                .get()
+                .map_err(|e| format!("Failed to await OCR: {}", e))?;
+
+        // Parse result
+        let mut blocks: Vec<OcrBlock> = Vec::new();
+        let mut full_text = String::new();
+
+        let lines = result.Lines()
+            .map_err(|e| format!("Failed to get lines: {}", e))?;
+        let n = lines.Size()
+            .map_err(|_| "Failed to get line count".to_string())?;
+
+        for i in 0..n {
+            let line = lines.GetAt(i)
+                .map_err(|e| format!("Failed to get line at {i}: {e}"))?;
+            let line_text = line.Text()
+                .map_err(|e| format!("Failed to get line text: {}", e))?
+                .to_string();
+
+            if !full_text.is_empty() {
+                full_text.push('\n');
+            }
+            full_text.push_str(&line_text);
+
+            let words = line.Words()
+                .map_err(|e| format!("Failed to get words: {}", e))?;
+            let wn = words.Size()
+                .map_err(|_| "Failed to get word count".to_string())?;
+
+            for j in 0..wn {
+                let word = words.GetAt(j)
+                    .map_err(|e| format!("Failed to get word at {j}: {e}"))?;
+                let word_text = word.Text()
+                    .map_err(|e| format!("Failed to get word text: {}", e))?
+                    .to_string();
+                let rect = word.BoundingRect()
+                    .map_err(|e| format!("Failed to get rect: {}", e))?;
+
+                blocks.push(OcrBlock {
+                    text: word_text,
+                    bbox_x: rect.X as f64,
+                    bbox_y: rect.Y as f64,
+                    width: rect.Width as f64,
+                    height: rect.Height as f64,
+                });
+            }
+        }
+
+        Ok(OcrResult { blocks, full_text })
+    }
 }
 
-fn parse_tsv_blocks(tsv: &str) -> Vec<OcrBlock> {
-    let mut blocks = Vec::new();
+// ---------------------------------------------------------------------------
+// macOS — Vision framework (via sidecar binary)
+// ---------------------------------------------------------------------------
+#[cfg(target_os = "macos")]
+mod platform {
+    use super::OcrResult;
+    use std::process::Command;
 
-    for line in tsv.lines().skip(1) {
-        // Split on tabs — TSV uses tab separators
-        let cols: Vec<&str> = line.split('\t').collect();
-        if cols.len() < 12 {
-            continue;
+    pub(super) fn run_ocr(path: &str, lang: &str) -> Result<OcrResult, String> {
+        let output = Command::new("macos-ocr-helper")
+            .arg(path)
+            .arg(lang)
+            .output()
+            .map_err(|e| format!("Failed to run OCR helper: {}", e))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!("OCR helper failed: {}", stderr));
         }
 
-        // Only process word-level entries (level == 5)
-        let level: i32 = cols[0].parse().unwrap_or(0);
-        if level != 5 {
-            continue;
-        }
-
-        // Skip empty text entries
-        let text = cols[11].trim().to_string();
-        if text.is_empty() {
-            continue;
-        }
-
-        let left: f64 = cols[6].parse().unwrap_or(0.0);
-        let top: f64 = cols[7].parse().unwrap_or(0.0);
-        let width: f64 = cols[8].parse().unwrap_or(0.0);
-        let height: f64 = cols[9].parse().unwrap_or(0.0);
-
-        blocks.push(OcrBlock {
-            text,
-            bbox_x: left,
-            bbox_y: top,
-            width,
-            height,
-        });
+        serde_json::from_slice(&output.stdout)
+            .map_err(|e| format!("Failed to parse OCR result: {}", e))
     }
+}
 
-    blocks
+// ---------------------------------------------------------------------------
+// Linux / other — not supported yet
+// ---------------------------------------------------------------------------
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+mod platform {
+    pub(super) fn run_ocr(_path: &str, _lang: &str) -> Result<super::OcrResult, String> {
+        Err("OCR is not supported on this platform".to_string())
+    }
+}
+
+pub fn run_ocr(path: &str, lang: &str) -> Result<OcrResult, String> {
+    platform::run_ocr(path, lang)
 }

@@ -47,25 +47,3 @@ pub fn get_image_info(path: &str) -> Result<ImageInfo, String> {
     })
 }
 
-pub fn get_image_bytes(path: &str) -> Result<Vec<u8>, String> {
-    let img = load_image(path)?;
-    let mut buf = std::io::Cursor::new(Vec::new());
-    img.write_to(&mut buf, image::ImageFormat::Png)
-        .map_err(|e| format!("Failed to encode image: {}", e))?;
-    Ok(buf.into_inner())
-}
-
-/// Convert image to grayscale for OCR preprocessing
-pub fn preprocess_for_ocr(img: &DynamicImage) -> Vec<u8> {
-    let gray = img.grayscale();
-    // Auto-contrast via normalization
-    let mut pixels: Vec<u8> = gray.to_luma8().into_raw();
-    // Apply simple threshold enhancement
-    let min = *pixels.iter().min().unwrap_or(&0) as f32;
-    let max = *pixels.iter().max().unwrap_or(&255) as f32;
-    let range = (max - min).max(1.0);
-    for p in &mut pixels {
-        *p = ((*p as f32 - min) / range * 255.0) as u8;
-    }
-    pixels
-}
