@@ -27,7 +27,7 @@ export function useImageViewer() {
   const imageListRef = useRef<string[]>([]);
 
   const openImage = useCallback(async (path?: string) => {
-    const resolvedPath = path ?? await openFileDialog();
+    const resolvedPath = typeof path === "string" ? path : await openFileDialog();
     if (!resolvedPath) return;
 
     try {

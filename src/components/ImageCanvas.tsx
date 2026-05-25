@@ -155,20 +155,26 @@ export function ImageCanvas({
     return () => window.removeEventListener("resize", resize);
   }, [drawCanvas]);
 
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
-      e.preventDefault();
-      if (zoomMode === "fit") {
-        const fitZoom = calculateFitZoom();
-        onSetZoomAbsolute(fitZoom);
-        onSetZoomMode("free");
-      } else {
-        const delta = e.deltaY > 0 ? -1 : 1;
-        onZoom(delta);
-      }
-    },
-    [zoomMode, onZoom, onSetZoomMode, onSetZoomAbsolute, calculateFitZoom]
-  );
+  const handleWheelRef = useRef((e: WheelEvent) => {});
+  handleWheelRef.current = (e: WheelEvent) => {
+    e.preventDefault();
+    if (zoomMode === "fit") {
+      const fitZoom = calculateFitZoom();
+      onSetZoomAbsolute(fitZoom);
+      onSetZoomMode("free");
+    } else {
+      const delta = e.deltaY > 0 ? -1 : 1;
+      onZoom(delta);
+    }
+  };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const handler = (e: WheelEvent) => handleWheelRef.current(e);
+    canvas.addEventListener("wheel", handler, { passive: false });
+    return () => canvas.removeEventListener("wheel", handler);
+  }, []);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -274,7 +280,6 @@ export function ImageCanvas({
     <canvas
       ref={canvasRef}
       className="flex-1 w-full h-full"
-      onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
