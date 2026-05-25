@@ -43,7 +43,6 @@ function App() {
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [recentFiles, setRecentFiles] = useState<string[]>([]);
-  void recentFiles; // used in handleDrop via setRecentFiles
   const [fileType, setFileType] = useState<string | null>(null);
   const [fileModified, setFileModified] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -203,6 +202,16 @@ function App() {
     }
   }, [openImage]);
 
+  const handleOpenRecent = useCallback((path: string) => {
+    openImage(path);
+    addRecentFile(path).then(() => {
+      setRecentFiles(prev => {
+        const filtered = prev.filter(f => f !== path);
+        return [path, ...filtered].slice(0, 10);
+      });
+    });
+  }, [openImage]);
+
   return (
     <div className="h-screen w-screen flex flex-col bg-background text-foreground overflow-hidden">
       <Toolbar
@@ -233,6 +242,8 @@ function App() {
         onBatchConvert={() => setShowConvertDialog(true)}
         onBatchRename={() => setShowRenameDialog(true)}
         onSettings={() => setShowSettings(true)}
+        recentFiles={recentFiles}
+        onOpenFile={handleOpenRecent}
       />
 
       <div

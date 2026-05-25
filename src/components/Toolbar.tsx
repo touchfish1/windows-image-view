@@ -1,8 +1,10 @@
 import { Button } from "@/components/ui/button";
+import { useState, useRef, useEffect } from "react";
 import {
   FolderOpen,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Maximize,
   Minimize2,
   Fullscreen,
@@ -35,6 +37,8 @@ interface ToolbarProps {
   onBatchConvert?: () => void;
   onBatchRename?: () => void;
   onSettings?: () => void;
+  recentFiles?: string[];
+  onOpenFile?: (path: string) => void;
 }
 
 export function Toolbar({
@@ -57,19 +61,69 @@ export function Toolbar({
   showRightSidebar,
   onToggleRightSidebar,
   onSettings,
+  recentFiles,
+  onOpenFile,
 }: ToolbarProps) {
+  const [showRecent, setShowRecent] = useState(false);
+  const recentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (recentRef.current && !recentRef.current.contains(e.target as Node)) {
+        setShowRecent(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   return (
     <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-border bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 select-none">
       {/* Open */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onOpen}
-        title="打开图片 (Ctrl+O)"
-        className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/60 active:bg-accent transition-all duration-150"
-      >
-        <FolderOpen className="h-4 w-4" />
-      </Button>
+      <div className="flex items-center">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onOpen}
+          title="打开图片 (Ctrl+O)"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/60 active:bg-accent transition-all duration-150"
+        >
+          <FolderOpen className="h-4 w-4" />
+        </Button>
+        {recentFiles && recentFiles.length > 0 && (
+          <div className="relative" ref={recentRef}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowRecent(!showRecent)}
+              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-all duration-150"
+              title="最近打开"
+            >
+              <ChevronDown className="h-3.5 w-3.5" />
+            </Button>
+            {showRecent && (
+              <div className="absolute top-full left-0 mt-1 w-56 bg-card/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl py-1 z-50">
+                <div className="px-3 py-1.5 text-[11px] text-muted-foreground/50 font-medium uppercase tracking-wider">
+                  最近打开
+                </div>
+                {recentFiles.map((file, i) => (
+                  <button
+                    key={i}
+                    className="w-full px-3 py-1.5 text-xs text-left text-foreground/70 hover:bg-accent/50 hover:text-foreground truncate transition-colors"
+                    onClick={() => {
+                      setShowRecent(false);
+                      onOpenFile?.(file);
+                    }}
+                    title={file}
+                  >
+                    {file.split(/[\\/]/).pop()}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="w-px h-5 bg-border/60 mx-0.5" />
 
