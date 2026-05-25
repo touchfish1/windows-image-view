@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { X, Image as ImageIcon, Trash2, Copy, FolderOpen } from "lucide-react";
 import { moveToTrash, showInFolder } from "@/lib/api";
@@ -71,9 +71,28 @@ interface ThumbnailItemProps {
 }
 
 function ThumbnailItem({ path, index, isSelected, onSelect }: ThumbnailItemProps) {
+  const [inView, setInView] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          obs.disconnect();
+        }
+      },
+      { rootMargin: "100px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!inView) return;
     let cancelled = false;
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -108,7 +127,7 @@ function ThumbnailItem({ path, index, isSelected, onSelect }: ThumbnailItemProps
     };
     img.src = convertFileSrc(path);
     return () => { cancelled = true; };
-  }, [path]);
+  }, [path, inView]);
 
   const handleDelete = async () => {
     const name = path.split(/[\\/]/).pop() ?? '';
@@ -129,21 +148,22 @@ function ThumbnailItem({ path, index, isSelected, onSelect }: ThumbnailItemProps
   };
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <button
-          onClick={() => onSelect(index)}
-          className={`w-full rounded-lg overflow-hidden transition-all duration-150 ${
-            isSelected
-              ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg shadow-primary/20"
-              : "opacity-70 hover:opacity-100 hover:ring-1 hover:ring-border"
-          }`}
-        >
-          <div className="bg-muted/50 flex items-center justify-center">
-            <canvas ref={canvasRef} className="max-w-full max-h-[90px]" />
-          </div>
-        </button>
-      </ContextMenuTrigger>
+    <div ref={containerRef}>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <button
+            onClick={() => onSelect(index)}
+            className={`w-full rounded-lg overflow-hidden transition-all duration-150 ${
+              isSelected
+                ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg shadow-primary/20"
+                : "opacity-70 hover:opacity-100 hover:ring-1 hover:ring-border"
+            }`}
+          >
+            <div className="bg-muted/50 flex items-center justify-center">
+              <canvas ref={canvasRef} className="max-w-full max-h-[90px]" />
+            </div>
+          </button>
+        </ContextMenuTrigger>
       <ContextMenuContent className="w-44">
         <ContextMenuItem onClick={handleShowInFolder}>
           <FolderOpen className="h-3.5 w-3.5 mr-2" />
@@ -163,5 +183,6 @@ function ThumbnailItem({ path, index, isSelected, onSelect }: ThumbnailItemProps
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
+    </div>
   );
 }
