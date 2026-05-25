@@ -19,8 +19,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [x86_64]
-    runs-on: windows-latest
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,7 +34,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.arch == 'x86_64' && 'x86_64-pc-windows-msvc' || 'i686-pc-windows-msvc' }}
+          targets: ${{ matrix.os == 'windows-latest' && 'x86_64-pc-windows-msvc' }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -47,7 +47,6 @@ jobs:
         run: |
           if ("${{ github.event_name }}" -eq "workflow_dispatch") {
             $ver = "${{ inputs.version }}"
-            # Update version in tauri.conf.json and Cargo.toml
             $tauriConf = "src-tauri/tauri.conf.json"
             (Get-Content $tauriConf) -replace '"version": ".*"', "`"version`": `"$ver`"" | Set-Content $tauriConf
             $cargoToml = "src-tauri/Cargo.toml"
@@ -65,9 +64,14 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Download PaddleOCR-json
+      - name: Download PaddleOCR-json (Windows)
+        if: matrix.os == 'windows-latest'
         shell: pwsh
         run: .\src-tauri\download-paddleocr.ps1
+
+      - name: Prepare resources (macOS)
+        if: matrix.os == 'macos-latest'
+        run: mkdir -p src-tauri/paddleocr
 
       - name: Build Tauri app
         run: npx tauri build
@@ -78,7 +82,7 @@ jobs:
       - name: List built artifacts
         shell: pwsh
         run: |
-          Get-ChildItem -Path src-tauri\target\release\bundle -Recurse -File | Select-Object FullName, Length
+          Get-ChildItem -Path src-tauri/target/release/bundle -Recurse -File | Select-Object FullName, Length
 
       - name: Create Release
         id: create_release
@@ -101,13 +105,17 @@ jobs:
             - 批量格式转换 & 批量重命名
             - 缩略图导航
             - 键盘快捷键 & 鼠标拖拽操作
+            - 跨平台支持：Windows + macOS
 
             ### 📦 安装说明
-            下载 `setup.exe` 运行安装。
+            - Windows：下载 `setup.exe` 运行安装
+            - macOS：下载 `.dmg` 文件并拖入 Applications 文件夹
 
             ### 🔧 系统要求
             - Windows 10/11 64位
+            - macOS 11+ (Big Sur)
             - WebView2 Runtime（Windows 10+ 已内置）
           files: |
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/dmg/*.dmg

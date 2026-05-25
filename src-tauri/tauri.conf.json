@@ -34,7 +34,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": ["nsis", "dmg"],
     "resources": [
       "paddleocr/**/*"
     ],
@@ -50,6 +50,10 @@
         "installMode": "currentUser",
         "installerHooks": "installer.nsh"
       }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "signingIdentity": null
     }
   },
   "plugins": {

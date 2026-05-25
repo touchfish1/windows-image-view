@@ -35,6 +35,9 @@ features = [
     "Globalization",
 ]
 
+[target.'cfg(target_os = "macos")'.dependencies]
+apple-vision = { version = "0.16", default-features = false, features = ["recognize_text"] }
+
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]

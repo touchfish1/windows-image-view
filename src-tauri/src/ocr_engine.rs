@@ -290,27 +290,53 @@ mod platform {
 }
 
 // ---------------------------------------------------------------------------
-// macOS — Vision framework (via sidecar binary)
+// macOS — Vision framework
 // ---------------------------------------------------------------------------
 #[cfg(target_os = "macos")]
 mod platform {
-    use super::OcrResult;
-    use std::process::Command;
+    use super::{OcrBlock, OcrResult};
+    use apple_vision::recognize_text::{TextRecognizer, RecognitionLevel};
 
-    pub(super) fn run_ocr(path: &str, lang: &str) -> Result<OcrResult, String> {
-        let output = Command::new("macos-ocr-helper")
-            .arg(path)
-            .arg(lang)
-            .output()
-            .map_err(|e| format!("Failed to run OCR helper: {}", e))?;
+    pub(super) fn run_ocr(path: &str, _lang: &str) -> Result<OcrResult, String> {
+        let recognizer = TextRecognizer::new()
+            .with_recognition_level(RecognitionLevel::Accurate)
+            .with_language_correction(true);
 
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("OCR helper failed: {}", stderr));
+        let observations = recognizer
+            .recognize_in_path(path)
+            .map_err(|e| format!("OCR failed: {}", e))?;
+
+        let img = image::open(path)
+            .map_err(|e| format!("Failed to open image: {}", e))?;
+        let img_w = img.width() as f64;
+        let img_h = img.height() as f64;
+
+        let mut blocks: Vec<OcrBlock> = Vec::new();
+        let mut full_text = String::new();
+
+        for obs in &observations {
+            if !full_text.is_empty() {
+                full_text.push('\n');
+            }
+            full_text.push_str(&obs.text);
+
+            let bbox = &obs.bounding_box;
+            // Convert from normalized (0-1, bottom-left origin) to pixel (top-left origin)
+            let pixel_x = bbox.x * img_w;
+            let pixel_y = (1.0 - bbox.y - bbox.height) * img_h;
+            let pixel_w = bbox.width * img_w;
+            let pixel_h = bbox.height * img_h;
+
+            blocks.push(OcrBlock {
+                text: obs.text.clone(),
+                bbox_x: pixel_x,
+                bbox_y: pixel_y,
+                width: pixel_w,
+                height: pixel_h,
+            });
         }
 
-        serde_json::from_slice(&output.stdout)
-            .map_err(|e| format!("Failed to parse OCR result: {}", e))
+        Ok(OcrResult { blocks, full_text })
     }
 }
 
