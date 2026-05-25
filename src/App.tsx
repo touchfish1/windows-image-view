@@ -16,6 +16,7 @@ import { formatFileSize } from "@/lib/utils";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { save } from "@tauri-apps/plugin-dialog";
+import { loadWindowState, saveWindowState, addRecentFile } from "@/hooks/useWindowState";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 function App() {
@@ -41,6 +42,8 @@ function App() {
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [recentFiles, setRecentFiles] = useState<string[]>([]);
+  void recentFiles; // used in handleDrop via setRecentFiles
   const [fileType, setFileType] = useState<string | null>(null);
   const [fileModified, setFileModified] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -71,6 +74,14 @@ function App() {
   useEffect(() => {
     setOnNext(navigateNext);
   }, [setOnNext, navigateNext]);
+
+  useEffect(() => {
+    loadWindowState().then((s) => {
+      setShowThumbnails(s.showThumbnails);
+      setShowRightSidebar(s.showRightSidebar);
+      setRecentFiles(s.recentFiles);
+    });
+  }, []);
 
   const getFileName = useCallback(() => {
     if (!state.currentPath) return null;
@@ -181,7 +192,15 @@ function App() {
     const imageFile = files.find(f => /\.(png|jpg|jpeg|bmp|gif|webp)$/i.test(f.name));
     if (!imageFile) return;
     const path = (imageFile as any).path;
-    if (path) openImage(path);
+    if (path) {
+      openImage(path);
+      addRecentFile(path).then(() => {
+        setRecentFiles(prev => {
+          const filtered = prev.filter(f => f !== path);
+          return [path, ...filtered].slice(0, 10);
+        });
+      });
+    }
   }, [openImage]);
 
   return (
@@ -199,10 +218,18 @@ function App() {
         zoomMode={state.zoomMode}
         isFullscreen={state.isFullscreen}
         showThumbnails={showThumbnails}
-        onToggleThumbnails={() => setShowThumbnails(!showThumbnails)}
+        onToggleThumbnails={() => {
+          const next = !showThumbnails;
+          setShowThumbnails(next);
+          saveWindowState({ showThumbnails: next });
+        }}
         onSlideshow={startSlideshow}
         showRightSidebar={showRightSidebar}
-        onToggleRightSidebar={() => setShowRightSidebar(!showRightSidebar)}
+        onToggleRightSidebar={() => {
+          const next = !showRightSidebar;
+          setShowRightSidebar(next);
+          saveWindowState({ showRightSidebar: next });
+        }}
         onBatchConvert={() => setShowConvertDialog(true)}
         onBatchRename={() => setShowRenameDialog(true)}
         onSettings={() => setShowSettings(true)}
