@@ -240,9 +240,11 @@ function App() {
     });
   }, [openImage]);
 
+  const isSlideshowPlaying = slideshowState.isPlaying;
+
   return (
-    <div className="h-screen w-screen flex flex-col bg-background text-foreground overflow-hidden">
-      <Toolbar
+    <div className={`h-screen w-screen flex flex-col overflow-hidden ${isSlideshowPlaying ? 'bg-black' : 'bg-background text-foreground'}`}>
+      {!isSlideshowPlaying && <Toolbar
         onOpen={openImage}
         onResetView={resetView}
         onNavigatePrev={navigatePrev}
@@ -276,7 +278,7 @@ function App() {
         onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
         recentFiles={recentFiles}
         onOpenFile={handleOpenRecent}
-      />
+      />}
 
       <div
         className="flex-1 flex overflow-hidden relative"
@@ -285,14 +287,16 @@ function App() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <ThumbnailSidebar
-          currentPath={state.currentPath}
-          currentIndex={state.currentIndex}
-          imageList={state.imageList}
-          onNavigate={navigateTo}
-          isOpen={showThumbnails}
-          onToggle={() => setShowThumbnails(!showThumbnails)}
-        />
+        {!isSlideshowPlaying && (
+          <ThumbnailSidebar
+            currentPath={state.currentPath}
+            currentIndex={state.currentIndex}
+            imageList={state.imageList}
+            onNavigate={navigateTo}
+            isOpen={showThumbnails}
+            onToggle={() => setShowThumbnails(!showThumbnails)}
+          />
+        )}
         <ImageCanvas
           imageInfo={state.imageInfo}
           ocrBlocks={state.ocrResult?.blocks ?? []}
@@ -315,7 +319,7 @@ function App() {
           imageFileName={getFileName()}
           imageDimensions={state.imageInfo ? { width: state.imageInfo.width, height: state.imageInfo.height } : null}
         />
-        {showRightSidebar && (
+        {!isSlideshowPlaying && showRightSidebar && (
           <RightSidebar
             ocrResult={state.ocrResult}
             ocrStatus={state.ocrStatus}
@@ -328,25 +332,27 @@ function App() {
         <DropOverlay visible={isDragging} />
       </div>
 
-      <StatusBar
-        ocrStatus={state.ocrStatus}
-        fileName={getFileName()}
-        zoom={state.zoom}
-        zoomMode={state.zoomMode}
-        imageDimensions={
-          state.imageInfo
-            ? {
-                width: state.imageInfo.width,
-                height: state.imageInfo.height,
-              }
-            : null
-        }
-        fileSize={fileSize}
-        imageIndex={state.currentIndex}
-        totalImages={state.imageList.length}
-        fileType={fileType}
-        fileModified={fileModified}
-      />
+      {!isSlideshowPlaying && (
+        <StatusBar
+          ocrStatus={state.ocrStatus}
+          fileName={getFileName()}
+          zoom={state.zoom}
+          zoomMode={state.zoomMode}
+          imageDimensions={
+            state.imageInfo
+              ? {
+                  width: state.imageInfo.width,
+                  height: state.imageInfo.height,
+                }
+              : null
+          }
+          fileSize={fileSize}
+          imageIndex={state.currentIndex}
+          totalImages={state.imageList.length}
+          fileType={fileType}
+          fileModified={fileModified}
+        />
+      )}
 
       {slideshowState.isPlaying && (
         <SlideshowOverlay

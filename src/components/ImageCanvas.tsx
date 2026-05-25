@@ -66,6 +66,13 @@ export function ImageCanvas({
   } | null>(null);
   const ocrBlocksRef = useRef(ocrBlocks);
   ocrBlocksRef.current = ocrBlocks;
+  // Live refs for immediate zoom/offset updates (bypass React async state)
+  const liveZoomRef = useRef(zoom);
+  const liveOffsetRef = useRef(offset);
+  const liveZoomModeRef = useRef(zoomMode);
+  liveZoomRef.current = zoom;
+  liveOffsetRef.current = offset;
+  liveZoomModeRef.current = zoomMode;
 
   const calculateFitZoom = useCallback(() => {
     const canvas = canvasRef.current;
@@ -144,7 +151,7 @@ export function ImageCanvas({
     };
   }, [imageInfo]);
 
-  // Redraw
+  // Redraw — reads zoom/offset/zoomMode from live refs for immediate responsiveness
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -203,8 +210,8 @@ export function ImageCanvas({
 
       // Draw the new image with increasing alpha on top
       ctx.globalAlpha = easeOutCubic(progress);
-      const effectiveZoom = zoomMode === "fit" ? calculateFitZoom() : zoom;
-      const effectiveOffset = zoomMode === "fit" ? { x: 0, y: 0 } : offset;
+      const effectiveZoom = liveZoomModeRef.current === "fit" ? calculateFitZoom() : liveZoomRef.current;
+      const effectiveOffset = liveZoomModeRef.current === "fit" ? { x: 0, y: 0 } : liveOffsetRef.current;
       ctx.save();
       const cx = canvas.width / 2;
       const cy = canvas.height / 2;
@@ -253,7 +260,7 @@ export function ImageCanvas({
     }
 
     ctx.restore();
-  }, [ocrBlocks, zoom, offset, selectionRange, zoomMode, calculateFitZoom, imageInfo]);
+  }, [ocrBlocks, selectionRange, calculateFitZoom, imageInfo]);
 
   useEffect(() => {
     drawCanvas();
@@ -287,60 +294,61 @@ export function ImageCanvas({
     return () => window.removeEventListener("resize", resize);
   }, [drawCanvas]);
 
-  const handleWheelRef = useRef((_e: WheelEvent) => {});
-  handleWheelRef.current = (e: WheelEvent) => {
-    e.preventDefault();
-
-    const canvas = canvasRef.current;
-    const img = imageRef.current;
-    if (!canvas || !img) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-
-    // Current zoom/offset values (captured by closure since ref is reassigned each render)
-    // Determine effective zoom/offset (fit mode uses calculated values, not stored state)
-    let currentZoom: number;
-    let currentOffset: { x: number; y: number };
-
-    if (zoomMode === "fit") {
-      const fitZoom = calculateFitZoom();
-      onSetZoomMode("free");
-      onSetZoomAbsolute(fitZoom);
-      currentZoom = fitZoom;
-      currentOffset = { x: 0, y: 0 };
-    } else {
-      currentZoom = zoom;
-      currentOffset = offset;
-    }
-
-    // Image-space coordinate of the mouse cursor
-    const cx = canvas.width / 2;
-    const cy = canvas.height / 2;
-    const imgX = (mx - cx - currentOffset.x) / currentZoom + img.width / 2;
-    const imgY = (my - cy - currentOffset.y) / currentZoom + img.height / 2;
-
-    const delta = e.deltaY > 0 ? -1 : 1;
-    const newZoom = Math.min(10, Math.max(0.1, currentZoom + delta * 0.1));
-
-    if (newZoom !== currentZoom) {
-      // Adjust offset so the pixel under cursor stays in place
-      const newOffsetX = mx - cx - (imgX - img.width / 2) * newZoom;
-      const newOffsetY = my - cy - (imgY - img.height / 2) * newZoom;
-
-      onPan(newOffsetX - currentOffset.x, newOffsetY - currentOffset.y);
-      onSetZoomAbsolute(newZoom);
-    }
-  };
-
+  // Native wheel event listener on the container element
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const handler = (e: WheelEvent) => handleWheelRef.current(e);
-    canvas.addEventListener("wheel", handler, { passive: false });
-    return () => canvas.removeEventListener("wheel", handler);
-  }, []);
+    const container = canvasRef.current?.parentElement;
+    if (!container) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+
+      const canvas = canvasRef.current;
+      const img = imageRef.current;
+      if (!canvas || !img) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      if (mx < 0 || mx > rect.width || my < 0 || my > rect.height) return;
+
+      let baseZoom;
+      let baseOffset;
+
+      if (liveZoomModeRef.current === 'fit') {
+        baseZoom = calculateFitZoom();
+        baseOffset = { x: 0, y: 0 };
+      } else {
+        baseZoom = liveZoomRef.current;
+        baseOffset = liveOffsetRef.current;
+      }
+
+      const delta = e.deltaY > 0 ? -1 : 1;
+      const newZoom = Math.min(10, Math.max(0.1, baseZoom + delta * 0.15));
+
+      if (newZoom !== baseZoom) {
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        const imgX = (mx - cx - baseOffset.x) / baseZoom + img.width / 2;
+        const imgY = (my - cy - baseOffset.y) / baseZoom + img.height / 2;
+
+        const newOffsetX = mx - cx - (imgX - img.width / 2) * newZoom;
+        const newOffsetY = my - cy - (imgY - img.height / 2) * newZoom;
+
+        liveZoomRef.current = newZoom;
+        liveOffsetRef.current = { x: newOffsetX, y: newOffsetY };
+        liveZoomModeRef.current = 'free';
+        drawCanvas();
+
+        onSetZoomMode('free');
+        onPan(newOffsetX - baseOffset.x, newOffsetY - baseOffset.y);
+        onSetZoomAbsolute(newZoom);
+      }
+    };
+
+    container.addEventListener('wheel', onWheel, { passive: false });
+    return () => container.removeEventListener('wheel', onWheel);
+  }, [calculateFitZoom, drawCanvas, onPan, onSetZoomAbsolute, onSetZoomMode]);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {

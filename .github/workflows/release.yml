@@ -86,7 +86,7 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Image Viewer ${{ steps.version.outputs.display }}
-          draft: true
+          draft: false
           prerelease: ${{ contains(steps.version.outputs.tag, '-') }}
           body: |
             ## Image Viewer ${{ steps.version.outputs.display }}
