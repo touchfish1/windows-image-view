@@ -102,6 +102,9 @@ export function ImageCanvas({
       imageRef.current = img;
       drawCanvas();
     };
+    img.onerror = () => {
+      console.error("Failed to load image from data URL (CSP may be blocking data: URIs)");
+    };
   }, [imageInfo]);
 
   // Redraw

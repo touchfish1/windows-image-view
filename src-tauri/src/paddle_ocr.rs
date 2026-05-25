@@ -3,6 +3,11 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 use tauri::Manager;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OcrBlock {
     pub text: String,
@@ -48,6 +53,7 @@ pub fn run_ocr(path: &str) -> Result<OcrResult, String> {
         .arg("--config_path=config.txt")
         .arg(format!("--image_path={}", path))
         .current_dir(engine_dir)
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .map_err(|e| format!("Failed to run PaddleOCR-json: {e}"))?;
 
