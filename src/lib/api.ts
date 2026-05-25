@@ -73,3 +73,7 @@ export async function checkFileAssoc(): Promise<AssocStatus[]> {
 export async function openDefaultApps(): Promise<void> {
   return invoke<void>("open_default_apps");
 }
+
+export async function registerDefaultProgram(): Promise<void> {
+  return invoke<void>("register_default_program");
+}

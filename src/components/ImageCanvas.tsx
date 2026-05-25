@@ -2,6 +2,7 @@ import { useRef, useEffect, useCallback } from "react";
 import type { ImageInfo, OcrBlock } from "@/types";
 import { joinSelectedText } from "@/lib/utils";
 import { ImageContextMenu } from "./ImageContextMenu";
+import { ImageIcon, FolderOpen, MousePointer2, Keyboard } from "lucide-react";
 
 interface ImageCanvasProps {
   imageInfo: ImageInfo | null;
@@ -286,6 +287,49 @@ export function ImageCanvas({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [ocrBlocks, selectionRange]);
+
+  // Empty state — no image loaded
+  if (!imageInfo) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-background select-none">
+        <div className="flex flex-col items-center gap-6 max-w-sm text-center px-8">
+          {/* Logo */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent ring-1 ring-primary/10">
+            <ImageIcon className="h-10 w-10 text-primary/60" />
+          </div>
+
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight text-foreground/80">
+              Image Viewer OCR
+            </h1>
+            <p className="text-sm text-muted-foreground/60 mt-1.5 leading-relaxed">
+              拖放图片到窗口，或点击工具栏打开按钮开始浏览
+            </p>
+          </div>
+
+          {/* Tips */}
+          <div className="grid grid-cols-2 gap-2 w-full">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border/50">
+              <FolderOpen className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
+              <span className="text-[11px] text-muted-foreground/60">Ctrl+O 打开</span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border/50">
+              <MousePointer2 className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
+              <span className="text-[11px] text-muted-foreground/60">拖放图片</span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border/50">
+              <Keyboard className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
+              <span className="text-[11px] text-muted-foreground/60">← → 导航</span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border/50">
+              <span className="text-[11px] font-mono text-muted-foreground/50 shrink-0">F11</span>
+              <span className="text-[11px] text-muted-foreground/60">全屏</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ImageContextMenu

@@ -29,6 +29,7 @@ pub fn run() {
             commands::unregister_file_assoc,
             commands::check_file_assoc,
             commands::open_default_apps,
+            commands::register_default_program,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

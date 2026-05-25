@@ -126,3 +126,8 @@ pub fn check_file_assoc() -> Vec<crate::file_assoc::AssocStatus> {
 pub fn open_default_apps() -> Result<(), String> {
     crate::file_assoc::open_default_apps_settings()
 }
+
+#[tauri::command]
+pub fn register_default_program() -> Result<(), String> {
+    crate::file_assoc::register_as_default_program()
+}
