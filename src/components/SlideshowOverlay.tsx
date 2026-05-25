@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { ChevronLeft, ChevronRight, Play, Pause } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Play,
+  Pause,
+  X,
+} from "lucide-react";
 
 interface SlideshowOverlayProps {
   isPlaying: boolean;
@@ -41,32 +47,84 @@ export function SlideshowOverlay({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black">
-      <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 transition-opacity duration-300 ${
-        showControls ? "opacity-100" : "opacity-0"
-      }`}>
-        <div className="flex items-center justify-center gap-4">
-          <button onClick={onPrev} className="text-white/80 hover:text-white p-2">
-            <ChevronLeft className="h-6 w-6" />
-          </button>
-          <button onClick={onToggle} className="text-white/80 hover:text-white p-2 bg-white/10 rounded-full">
-            {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
-          </button>
-          <button onClick={onNext} className="text-white/80 hover:text-white p-2">
-            <ChevronRight className="h-6 w-6" />
-          </button>
-          <span className="text-white/60 text-sm ml-4">{currentIndex + 1} / {imageCount}</span>
-          <div className="flex items-center gap-1 ml-4">
-            {SPEEDS.map((s) => (
-              <button key={s.value}
-                onClick={() => onSetInterval(s.value)}
-                className={`px-2 py-1 text-xs rounded ${interval === s.value ? "bg-white/20 text-white" : "text-white/60 hover:text-white/80"}`}
-              >
-                {s.label}
-              </button>
-            ))}
+    <div className="fixed inset-0 z-50 bg-black select-none">
+      {/* Progress bar at top */}
+      <div className="absolute top-0 left-0 right-0 h-0.5 bg-white/10 z-10">
+        <div
+          className="h-full bg-primary/80 transition-all duration-300"
+          style={{ width: `${((currentIndex + 1) / imageCount) * 100}%` }}
+        />
+      </div>
+
+      {/* Bottom controls */}
+      <div
+        className={`absolute bottom-0 left-0 right-0 transition-all duration-500 ease-out ${
+          showControls
+            ? "opacity-100 translate-y-0"
+            : "opacity-0 translate-y-4 pointer-events-none"
+        }`}
+      >
+        <div className="bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-16 pb-6 px-6">
+          <div className="flex items-center justify-center gap-3 max-w-lg mx-auto">
+            {/* Prev */}
+            <button
+              onClick={onPrev}
+              className="text-white/70 hover:text-white p-2.5 rounded-full hover:bg-white/10 transition-all"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+
+            {/* Play/Pause */}
+            <button
+              onClick={onToggle}
+              className="text-white p-3 rounded-full bg-white/15 hover:bg-white/25 transition-all hover:scale-105 active:scale-95"
+            >
+              {isPlaying ? (
+                <Pause className="h-5 w-5" />
+              ) : (
+                <Play className="h-5 w-5" />
+              )}
+            </button>
+
+            {/* Next */}
+            <button
+              onClick={onNext}
+              className="text-white/70 hover:text-white p-2.5 rounded-full hover:bg-white/10 transition-all"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+
+            {/* Counter */}
+            <span className="text-white/50 text-xs ml-2 min-w-[60px]">
+              {currentIndex + 1} / {imageCount}
+            </span>
+
+            {/* Speed selector */}
+            <div className="flex items-center gap-1 ml-2">
+              {SPEEDS.map((s) => (
+                <button
+                  key={s.value}
+                  onClick={() => onSetInterval(s.value)}
+                  className={`px-2 py-1 text-[11px] rounded-md transition-all ${
+                    interval === s.value
+                      ? "bg-white/20 text-white"
+                      : "text-white/40 hover:text-white/70 hover:bg-white/10"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Stop */}
+            <button
+              onClick={onStop}
+              className="text-white/40 hover:text-white p-2 rounded-full hover:bg-white/10 transition-all ml-1"
+              title="退出 (Esc)"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-          <button onClick={onStop} className="text-white/60 hover:text-white text-sm ml-4">退出 (Esc)</button>
         </div>
       </div>
     </div>

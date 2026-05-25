@@ -38,38 +38,67 @@ export function StatusBar({
     }
   };
 
+  const dotColor = {
+    idle: "bg-muted-foreground/40",
+    running: "bg-yellow-500 animate-pulse",
+    done: "bg-green-500",
+    error: "bg-red-500",
+  }[ocrStatus];
+
   return (
-    <div className="flex items-center justify-between px-3 py-1 border-t border-border bg-card text-xs text-muted-foreground">
-      <div className="flex items-center gap-3 truncate">
-        {fileName && (
-          <span className="truncate max-w-[300px]" title={fileName}>{fileName}</span>
+    <div className="flex items-center justify-between px-3 py-1 border-t border-border bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 text-[11px] text-muted-foreground select-none">
+      {/* Left */}
+      <div className="flex items-center gap-2.5 truncate min-w-0">
+        {fileName ? (
+          <span className="truncate max-w-[280px] text-foreground/70" title={fileName}>
+            {fileName}
+          </span>
+        ) : (
+          <span className="text-muted-foreground/50">未打开文件</span>
         )}
-        {!fileName && <span>未打开文件</span>}
         {imageDimensions && (
-          <span className="whitespace-nowrap">{imageDimensions.width} × {imageDimensions.height}</span>
+          <>
+            <span className="w-px h-3 bg-border/50" />
+            <span className="whitespace-nowrap text-muted-foreground/60">
+              {imageDimensions.width} × {imageDimensions.height}
+            </span>
+          </>
         )}
-        {fileSize && <span className="whitespace-nowrap">{fileSize}</span>}
-        {fileType && <span className="whitespace-nowrap">{fileType.toUpperCase()}</span>}
-        {fileModified && <span className="whitespace-nowrap">{fileModified}</span>}
+        {fileSize && (
+          <>
+            <span className="w-px h-3 bg-border/50" />
+            <span className="whitespace-nowrap text-muted-foreground/60">{fileSize}</span>
+          </>
+        )}
+        {fileType && (
+          <>
+            <span className="w-px h-3 bg-border/50" />
+            <span className="whitespace-nowrap font-medium text-muted-foreground/80">{fileType.toUpperCase()}</span>
+          </>
+        )}
+        {fileModified && (
+          <>
+            <span className="w-px h-3 bg-border/50" />
+            <span className="whitespace-nowrap text-muted-foreground/50">{fileModified}</span>
+          </>
+        )}
       </div>
-      <div className="flex items-center gap-3">
+
+      {/* Right */}
+      <div className="flex items-center gap-3 shrink-0">
         {totalImages > 0 && (
-          <span className="whitespace-nowrap">{imageIndex + 1} / {totalImages}</span>
+          <span className="whitespace-nowrap text-muted-foreground/60 tabular-nums">
+            {imageIndex + 1}<span className="text-muted-foreground/30">/</span>{totalImages}
+          </span>
         )}
-        <span className="whitespace-nowrap">缩放: {zoomMode === "fit" ? "适应窗口" : `${Math.round(zoom * 100)}%`}</span>
-        <div className="flex items-center gap-2">
-          <span
-            className={`w-1.5 h-1.5 rounded-full ${
-              ocrStatus === "done"
-                ? "bg-green-500"
-                : ocrStatus === "running"
-                  ? "bg-yellow-500 animate-pulse"
-                  : ocrStatus === "error"
-                    ? "bg-red-500"
-                    : "bg-muted-foreground"
-            }`}
-          />
-          <span>{ocrLabel()}</span>
+        <span className="whitespace-nowrap text-muted-foreground/60 tabular-nums">
+          {zoomMode === "fit" ? "适应窗口" : `${Math.round(zoom * 100)}%`}
+        </span>
+
+        {/* OCR Status */}
+        <div className="flex items-center gap-1.5">
+          <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+          <span className="text-muted-foreground/50">{ocrLabel()}</span>
         </div>
       </div>
     </div>

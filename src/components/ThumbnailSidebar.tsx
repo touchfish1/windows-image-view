@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { X, Image as ImageIcon } from "lucide-react";
 
 interface ThumbnailSidebarProps {
   currentPath: string | null;
@@ -21,19 +22,25 @@ export function ThumbnailSidebar({
   if (!isOpen) return null;
 
   return (
-    <div className="w-44 border-r border-border bg-card flex flex-col overflow-hidden">
+    <div className="w-44 border-r border-border bg-background/60 backdrop-blur-lg flex flex-col overflow-hidden animate-slideInLeft">
+      {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-        <span className="text-xs font-medium text-muted-foreground">
-          缩略图
-        </span>
+        <div className="flex items-center gap-1.5">
+          <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground">
+            缩略图
+          </span>
+        </div>
         <button
           onClick={onToggle}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
         >
-          ✕
+          <X className="h-3.5 w-3.5" />
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto p-2 space-y-2">
+
+      {/* Thumbnails */}
+      <div className="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-1.5">
         {imageList.map((path, idx) => (
           <ThumbnailItem
             key={path}
@@ -84,9 +91,9 @@ function ThumbnailItem({ path, index, isSelected, onSelect }: ThumbnailItemProps
       if (!ctx) return;
       canvas.width = 160;
       canvas.height = 90;
-      ctx.fillStyle = "#333";
+      ctx.fillStyle = "hsl(225, 5%, 16%)";
       ctx.fillRect(0, 0, 160, 90);
-      ctx.fillStyle = "#999";
+      ctx.fillStyle = "hsl(215, 10%, 56%)";
       ctx.font = "12px sans-serif";
       ctx.textAlign = "center";
       ctx.fillText("加载失败", 80, 50);
@@ -98,13 +105,15 @@ function ThumbnailItem({ path, index, isSelected, onSelect }: ThumbnailItemProps
   return (
     <button
       onClick={() => onSelect(index)}
-      className={`w-full p-1 rounded flex items-center justify-center transition-colors ${
+      className={`w-full rounded-lg overflow-hidden transition-all duration-150 ${
         isSelected
-          ? "bg-accent ring-1 ring-primary"
-          : "hover:bg-accent/50"
+          ? "ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg shadow-primary/20"
+          : "opacity-70 hover:opacity-100 hover:ring-1 hover:ring-border"
       }`}
     >
-      <canvas ref={canvasRef} className="max-w-full max-h-[90px]" />
+      <div className="bg-muted/50 flex items-center justify-center">
+        <canvas ref={canvasRef} className="max-w-full max-h-[90px]" />
+      </div>
     </button>
   );
 }

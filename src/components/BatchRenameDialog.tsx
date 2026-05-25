@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { previewRename, renameFiles } from "@/lib/api";
 import type { RenameItem, RenameResult } from "@/types";
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, ScanText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const PATTERNS = [
@@ -55,11 +55,16 @@ export function BatchRenameDialog({ imageList, isOpen, onClose }: BatchRenameDia
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center" onClick={onClose}>
-      <div className="bg-card rounded-lg shadow-xl w-[560px] max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    <div className="dialog-overlay flex items-center justify-center" onClick={onClose}>
+      <div className="dialog-content bg-card/95 backdrop-blur-xl rounded-xl shadow-2xl border border-border w-[560px] max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="p-4 border-b border-border">
-          <h2 className="text-lg font-semibold">批量重命名</h2>
-          <p className="text-sm text-muted-foreground mt-1">{imageList.length} 个文件</p>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="p-1.5 rounded-md bg-primary/10">
+              <ScanText className="h-4 w-4 text-primary" />
+            </div>
+            <h2 className="text-base font-semibold tracking-tight">批量重命名</h2>
+          </div>
+          <p className="text-sm text-muted-foreground ml-9">{imageList.length} 个文件</p>
         </div>
         <div className="p-4 space-y-4">
           <div>
@@ -138,7 +143,7 @@ export function BatchRenameDialog({ imageList, isOpen, onClose }: BatchRenameDia
           )}
         </div>
         <div className="p-4 border-t border-border flex justify-end">
-          <Button variant="outline" onClick={onClose}>关闭</Button>
+          <Button variant="outline" onClick={onClose} size="sm">关闭</Button>
         </div>
       </div>
     </div>

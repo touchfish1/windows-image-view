@@ -77,14 +77,16 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center" onClick={onClose}>
+    <div className="dialog-overlay flex items-center justify-center" onClick={onClose}>
       <div
-        className="bg-card rounded-lg shadow-xl w-[480px] max-h-[80vh] overflow-y-auto"
+        className="dialog-content bg-card/95 backdrop-blur-xl rounded-xl shadow-2xl border border-border w-[480px] max-h-[80vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-4 border-b border-border flex items-center gap-2">
-          <Settings className="h-5 w-5" />
-          <h2 className="text-lg font-semibold">设置</h2>
+          <div className="p-1.5 rounded-md bg-primary/10">
+            <Settings className="h-4 w-4 text-primary" />
+          </div>
+          <h2 className="text-base font-semibold tracking-tight">设置</h2>
         </div>
 
         <div className="p-4 space-y-4">
@@ -154,11 +156,11 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
         </div>
 
         <div className="p-4 border-t border-border flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} size="sm">
             取消
           </Button>
-          <Button onClick={handleSave} disabled={saving || loading}>
-            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+          <Button onClick={handleSave} disabled={saving || loading} size="sm">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
             保存
           </Button>
         </div>
