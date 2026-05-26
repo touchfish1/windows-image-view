@@ -21,6 +21,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { save } from "@tauri-apps/plugin-dialog";
 import { loadWindowState, saveWindowState, addRecentFile } from "@/hooks/useWindowState";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 
 const EMPTY_BLOCKS: never[] = [];
 
@@ -89,20 +90,23 @@ function App() {
       setShowThumbnails(s.showThumbnails);
       setShowRightSidebar(s.showRightSidebar);
       setRecentFiles(s.recentFiles);
-      if ((s as any).theme) {
-        setTheme((s as any).theme);
-      }
+      setTheme(s.theme);
     });
     // Open file passed as CLI argument (e.g. when set as default image viewer)
     getLaunchFile().then((path) => {
       if (path) openImage(path);
     });
+    // Listen for file-open events from single-instance plugin (e.g. "Open with" from Windows)
+    const unlisten = listen<string>("file-open", (event) => {
+      openImage(event.payload);
+    });
+    return () => { unlisten.then((fn) => fn()); };
   }, []);
 
   useEffect(() => {
     document.documentElement.classList.toggle('light', theme === 'light');
     document.documentElement.classList.toggle('dark', theme === 'dark');
-    saveWindowState({ theme } as any);
+    saveWindowState({ theme });
   }, [theme]);
 
   const getFileName = useCallback(() => {
@@ -258,7 +262,7 @@ function App() {
   const isSlideshowPlaying = slideshowState.isPlaying;
 
   return (
-    <div className={`h-screen w-screen flex flex-col overflow-hidden ${isSlideshowPlaying || state.isFullscreen ? 'bg-black' : 'bg-background text-foreground'}`}>
+    <div className={`h-screen w-screen flex flex-col overflow-hidden ${isSlideshowPlaying || state.isFullscreen ? 'bg-[#21211a]' : 'bg-background text-foreground'}`}>
       {!isSlideshowPlaying && !state.isFullscreen && <Toolbar
         onOpen={openImage}
         onResetView={resetView}

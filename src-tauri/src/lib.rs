@@ -1,5 +1,5 @@
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 pub mod commands;
 pub mod image_loader;
@@ -20,6 +20,11 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_updater::Builder::default().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            if let Some(path) = argv.get(1) {
+                let _ = app.emit("file-open", path.clone());
+            }
+        }))
         .setup(|app| {
             #[cfg(windows)]
             paddle_ocr::init(app);

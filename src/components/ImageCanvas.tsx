@@ -172,7 +172,7 @@ export function ImageCanvas({
 
     const img = imageRef.current;
     if (!img) {
-      ctx.fillStyle = "#1a1a1a";
+      ctx.fillStyle = "#21211a";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       // If imageInfo exists but img hasn't loaded yet, show loading
@@ -243,7 +243,7 @@ export function ImageCanvas({
       }
     }
 
-    ctx.fillStyle = "#1a1a1a";
+    ctx.fillStyle = "#21211a";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const effectiveZoom = liveZoomModeRef.current === "fit" ? calculateFitZoom() : liveZoomRef.current;

@@ -5,6 +5,7 @@ interface WindowState {
   showRightSidebar: boolean;
   lastDirectory: string | null;
   recentFiles: string[];
+  theme: 'dark' | 'light';
 }
 
 const DEFAULT_STATE: WindowState = {
@@ -12,6 +13,7 @@ const DEFAULT_STATE: WindowState = {
   showRightSidebar: true,
   lastDirectory: null,
   recentFiles: [],
+  theme: 'dark',
 };
 
 let storeInstance: Store | null = null;
@@ -30,11 +32,13 @@ export async function loadWindowState(): Promise<WindowState> {
     const showRightSidebar = await store.get<boolean>('showRightSidebar');
     const lastDirectory = await store.get<string | null>('lastDirectory');
     const recentFiles = await store.get<string[]>('recentFiles');
+    const theme = await store.get<'dark' | 'light'>('theme');
     return {
       showThumbnails: showThumbnails ?? DEFAULT_STATE.showThumbnails,
       showRightSidebar: showRightSidebar ?? DEFAULT_STATE.showRightSidebar,
       lastDirectory: lastDirectory ?? DEFAULT_STATE.lastDirectory,
       recentFiles: recentFiles ?? DEFAULT_STATE.recentFiles,
+      theme: theme ?? DEFAULT_STATE.theme,
     };
   } catch {
     return DEFAULT_STATE;
