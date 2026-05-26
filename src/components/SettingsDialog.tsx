@@ -103,7 +103,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
   return (
     <div className="dialog-overlay flex items-center justify-center" onClick={onClose}>
       <div
-        className="dialog-content bg-card/95 backdrop-blur-xl rounded-xl shadow-2xl border border-border w-[500px] max-h-[80vh] overflow-y-auto"
+        className="dialog-content bg-card/95 backdrop-blur-xl rounded-xl shadow-2xl border border-border w-[500px] max-h-[80vh] overflow-y-auto scrollbar-thin"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-4 border-b border-border flex items-center gap-2">
