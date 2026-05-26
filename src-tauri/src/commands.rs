@@ -6,32 +6,37 @@ pub fn open_image(path: String) -> Result<image_loader::ImageInfo, String> {
 }
 
 #[tauri::command]
-pub fn run_ocr(path: String, _lang: Option<String>) -> Result<ocr_engine::OcrResult, String> {
-    #[cfg(windows)]
-    {
-        // Try PaddleOCR-json first (best accuracy, especially for Chinese)
-        if crate::paddle_ocr::is_available() {
-            match crate::paddle_ocr::run_ocr(&path) {
-                Ok(result) if !result.blocks.is_empty() => {
-                    return Ok(ocr_engine::OcrResult {
-                        blocks: result.blocks.into_iter().map(|b| ocr_engine::OcrBlock {
-                            text: b.text,
-                            bbox_x: b.bbox_x,
-                            bbox_y: b.bbox_y,
-                            width: b.width,
-                            height: b.height,
-                        }).collect(),
-                        full_text: result.full_text,
-                    });
+pub async fn run_ocr(path: String, _lang: Option<String>) -> Result<ocr_engine::OcrResult, String> {
+    tokio::task::spawn_blocking(move || {
+        #[cfg(windows)]
+        {
+            // Try PaddleOCR-json first (best accuracy, especially for Chinese)
+            if crate::paddle_ocr::is_available() {
+                match crate::paddle_ocr::run_ocr(&path) {
+                    Ok(result) if !result.blocks.is_empty() => {
+                        return Ok(ocr_engine::OcrResult {
+                            engine: "PaddleOCR".to_string(),
+                            blocks: result.blocks.into_iter().map(|b| ocr_engine::OcrBlock {
+                                text: b.text,
+                                bbox_x: b.bbox_x,
+                                bbox_y: b.bbox_y,
+                                width: b.width,
+                                height: b.height,
+                            }).collect(),
+                            full_text: result.full_text,
+                        });
+                    }
+                    Ok(_) => { /* empty — fall through */ }
+                    Err(e) => eprintln!("PaddleOCR failed, falling back: {e}"),
                 }
-                Ok(_) => { /* empty — fall through */ }
-                Err(e) => eprintln!("PaddleOCR failed, falling back: {e}"),
             }
         }
-    }
 
-    let lang = _lang.unwrap_or_default();
-    ocr_engine::run_ocr(&path, &lang)
+        let lang = _lang.unwrap_or_default();
+        ocr_engine::run_ocr(&path, &lang)
+    })
+    .await
+    .map_err(|e| format!("OCR task failed: {}", e))?
 }
 
 #[tauri::command]

@@ -13,6 +13,8 @@ pub struct OcrBlock {
 pub struct OcrResult {
     pub blocks: Vec<OcrBlock>,
     pub full_text: String,
+    #[serde(default)]
+    pub engine: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -236,7 +238,7 @@ mod platform {
             });
         }
 
-        Ok(OcrResult { blocks, full_text })
+        Ok(OcrResult { blocks, full_text, engine: "Windows.Media.Ocr".into() })
     }
 
     // -------------------------------------------------------------------
@@ -336,7 +338,7 @@ mod platform {
             });
         }
 
-        Ok(OcrResult { blocks, full_text })
+        Ok(OcrResult { blocks, full_text, engine: "Apple Vision".into() })
     }
 }
 
