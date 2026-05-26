@@ -251,8 +251,8 @@ function App() {
   const isSlideshowPlaying = slideshowState.isPlaying;
 
   return (
-    <div className={`h-screen w-screen flex flex-col overflow-hidden ${isSlideshowPlaying ? 'bg-black' : 'bg-background text-foreground'}`}>
-      {!isSlideshowPlaying && <Toolbar
+    <div className={`h-screen w-screen flex flex-col overflow-hidden ${isSlideshowPlaying || state.isFullscreen ? 'bg-black' : 'bg-background text-foreground'}`}>
+      {!isSlideshowPlaying && !state.isFullscreen && <Toolbar
         onOpen={openImage}
         onResetView={resetView}
         onNavigatePrev={navigatePrev}
@@ -292,7 +292,7 @@ function App() {
       <div
         className="flex-1 flex overflow-hidden relative"
       >
-        {!isSlideshowPlaying && (
+        {!isSlideshowPlaying && !state.isFullscreen && (
           <ThumbnailSidebar
             currentPath={state.currentPath}
             currentIndex={state.currentIndex}
@@ -324,7 +324,7 @@ function App() {
           imageFileName={getFileName()}
           imageDimensions={state.imageInfo ? { width: state.imageInfo.width, height: state.imageInfo.height } : null}
         />
-        {!isSlideshowPlaying && showRightSidebar && (
+        {!isSlideshowPlaying && !state.isFullscreen && showRightSidebar && (
           <RightSidebar
             ocrResult={state.ocrResult}
             ocrStatus={state.ocrStatus}
@@ -337,7 +337,7 @@ function App() {
         <DropOverlay visible={isDragging} />
       </div>
 
-      {!isSlideshowPlaying && (
+      {!isSlideshowPlaying && !state.isFullscreen && (
         <StatusBar
           ocrStatus={state.ocrStatus}
           fileName={getFileName()}

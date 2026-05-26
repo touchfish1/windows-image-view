@@ -537,6 +537,7 @@ export function ImageCanvas({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseLeave}
+          onDoubleClick={onToggleFullscreen}
           tabIndex={0}
         />
       </ImageContextMenu>
