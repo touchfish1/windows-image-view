@@ -1,6 +1,20 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { debugStore } from "@/lib/debug";
 import type { ImageInfo, OcrResult, ExifData, ConvertOptions, ConvertResult, RenameItem, RenameResult, AssocStatus } from "@/types";
+
+/** Wrapped invoke that logs all IPC calls to the debug panel */
+async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  debugStore.logInvoke(cmd, args);
+  try {
+    const result = await tauriInvoke<T>(cmd, args);
+    debugStore.logInvokeResult(cmd, result);
+    return result;
+  } catch (e) {
+    debugStore.logInvokeError(cmd, e);
+    throw e;
+  }
+}
 
 export async function openFileDialog(): Promise<string | null> {
   const selected = await open({

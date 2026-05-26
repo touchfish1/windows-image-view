@@ -13,6 +13,7 @@ import { BatchConvertDialog } from "@/components/BatchConvertDialog";
 import { BatchRenameDialog } from "@/components/BatchRenameDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { AboutDialog } from "@/components/AboutDialog";
+import { DebugPanel } from "@/components/DebugPanel";
 import { getFileSize, saveImageAs, showInFolder, saveTextFile } from "@/lib/api";
 import { formatFileSize } from "@/lib/utils";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -49,6 +50,7 @@ function App() {
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
   const [recentFiles, setRecentFiles] = useState<string[]>([]);
   const [fileType, setFileType] = useState<string | null>(null);
   const [fileModified, setFileModified] = useState<string | null>(null);
@@ -137,6 +139,18 @@ function App() {
     onOpen: openImage,
     onEscape: handleEscape,
   });
+
+  // F12 — toggle debug panel
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "F12") {
+        e.preventDefault();
+        setShowDebug((p) => !p);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const handleCopyImage = useCallback(async () => {
     if (!state.currentPath) return;
@@ -392,6 +406,11 @@ function App() {
       <AboutDialog
         isOpen={showAbout}
         onClose={() => setShowAbout(false)}
+      />
+
+      <DebugPanel
+        isOpen={showDebug}
+        onClose={() => setShowDebug(false)}
       />
     </div>
   );
