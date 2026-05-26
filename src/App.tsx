@@ -20,7 +20,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { save } from "@tauri-apps/plugin-dialog";
 import { loadWindowState, saveWindowState, addRecentFile } from "@/hooks/useWindowState";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const EMPTY_BLOCKS: never[] = [];
 
@@ -55,6 +55,7 @@ function App() {
   const [fileType, setFileType] = useState<string | null>(null);
   const [fileModified, setFileModified] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const fullscreenTogglingRef = useRef(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   const { slideshowState, start: startSlideshow, stop: stopSlideshow, toggle: toggleSlideshow, setInterval: setSlideshowInterval, setOnNext } = useSlideshow(state.imageList.length);
@@ -110,10 +111,16 @@ function App() {
   }, [state.currentPath]);
 
   const toggleFullscreen = useCallback(async () => {
-    const win = getCurrentWindow();
-    const isFullscreen = await win.isFullscreen();
-    await win.setFullscreen(!isFullscreen);
-    setFullscreen(!isFullscreen);
+    if (fullscreenTogglingRef.current) return;
+    fullscreenTogglingRef.current = true;
+    try {
+      const win = getCurrentWindow();
+      const isFullscreen = await win.isFullscreen();
+      await win.setFullscreen(!isFullscreen);
+      setFullscreen(!isFullscreen);
+    } finally {
+      fullscreenTogglingRef.current = false;
+    }
   }, [setFullscreen]);
 
   const handleZoomActual = useCallback(() => {
@@ -299,7 +306,11 @@ function App() {
             imageList={state.imageList}
             onNavigate={navigateTo}
             isOpen={showThumbnails}
-            onToggle={() => setShowThumbnails(!showThumbnails)}
+            onToggle={() => {
+              const next = !showThumbnails;
+              setShowThumbnails(next);
+              saveWindowState({ showThumbnails: next });
+            }}
           />
         )}
         <ImageCanvas
@@ -331,7 +342,10 @@ function App() {
             selectionRange={state.selectionRange}
             onSelectionChange={setSelection}
             imagePath={state.currentPath}
-            onClose={() => setShowRightSidebar(false)}
+            onClose={() => {
+              setShowRightSidebar(false);
+              saveWindowState({ showRightSidebar: false });
+            }}
           />
         )}
         <DropOverlay visible={isDragging} />
