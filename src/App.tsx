@@ -21,6 +21,8 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { loadWindowState, saveWindowState, addRecentFile } from "@/hooks/useWindowState";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+const EMPTY_BLOCKS: never[] = [];
+
 function App() {
   const {
     state,
@@ -302,7 +304,7 @@ function App() {
         )}
         <ImageCanvas
           imageInfo={state.imageInfo}
-          ocrBlocks={state.ocrResult?.blocks ?? []}
+          ocrBlocks={state.ocrResult?.blocks ?? EMPTY_BLOCKS}
           zoom={state.zoom}
           offset={state.offset}
           selectionRange={state.selectionRange}
