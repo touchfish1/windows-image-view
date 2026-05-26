@@ -183,25 +183,27 @@ jobs:
 
           $platforms = @{}
 
-          Get-ChildItem -Filter "*.sig" | ForEach-Object {
+          Get-ChildItem -Recurse -Filter "*.sig" | ForEach-Object {
             $sig = Get-Content $_.FullName -Raw
             $sigFileName = $_.Name
             $installerName = $sigFileName -replace '\.sig$', ''
+            # GitHub release asset names use dots instead of spaces
+            $assetName = $installerName -replace ' ', '.'
 
             if ($installerName -match 'x64-setup') {
               $platforms["windows-x86_64"] = @{
                 signature = $sig
-                url = "https://github.com/$repo/releases/download/$tag/$installerName"
+                url = "https://github.com/$repo/releases/download/$tag/$assetName"
               }
             } elseif ($installerName -match 'aarch64|arm64') {
               $platforms["darwin-aarch64"] = @{
                 signature = $sig
-                url = "https://github.com/$repo/releases/download/$tag/$installerName"
+                url = "https://github.com/$repo/releases/download/$tag/$assetName"
               }
             } else {
               $platforms["darwin-x86_64"] = @{
                 signature = $sig
-                url = "https://github.com/$repo/releases/download/$tag/$installerName"
+                url = "https://github.com/$repo/releases/download/$tag/$assetName"
               }
             }
           }
