@@ -18,6 +18,7 @@ import {
   FileText,
   Sun,
   Moon,
+  Info,
 } from "lucide-react";
 
 interface ToolbarProps {
@@ -46,6 +47,7 @@ interface ToolbarProps {
   onToggleTheme?: () => void;
   recentFiles?: string[];
   onOpenFile?: (path: string) => void;
+  onAbout?: () => void;
 }
 
 export function Toolbar({
@@ -74,6 +76,7 @@ export function Toolbar({
   onToggleTheme,
   recentFiles,
   onOpenFile,
+  onAbout,
 }: ToolbarProps) {
   const [showRecent, setShowRecent] = useState(false);
   const recentRef = useRef<HTMLDivElement>(null);
@@ -317,6 +320,17 @@ export function Toolbar({
         className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/60 active:bg-accent transition-all duration-150"
       >
         <Settings className="h-4 w-4" />
+      </Button>
+
+      {/* About */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onAbout}
+        title="关于"
+        className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/60 active:bg-accent transition-all duration-150"
+      >
+        <Info className="h-4 w-4" />
       </Button>
     </div>
   );

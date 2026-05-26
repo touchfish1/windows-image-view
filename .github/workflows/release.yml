@@ -66,6 +66,17 @@ jobs:
             "app_version=$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           }
 
+      - name: Save version info
+        shell: pwsh
+        run: |
+          @{ tag = "${{ steps.version.outputs.tag }}"; display = "${{ steps.version.outputs.display }}" } | ConvertTo-Json | Set-Content version.json
+
+      - name: Upload version info
+        uses: actions/upload-artifact@v4
+        with:
+          name: version-info
+          path: version.json
+
       - name: Install npm dependencies
         run: npm ci
 
@@ -82,7 +93,12 @@ jobs:
         run: npx tauri build
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Upload signatures
+        uses: actions/upload-artifact@v4
+        with:
+          name: sigs-${{ matrix.os }}
+          path: src-tauri/target/release/bundle/**/*.sig
 
       - name: List built artifacts
         shell: pwsh
@@ -112,11 +128,11 @@ jobs:
             - 键盘快捷键 & 鼠标拖拽操作
             - 跨平台支持：Windows + macOS
 
-            ### 📦 安装说明
+            ### 安装说明
             - Windows：下载 `setup.exe` 运行安装
             - macOS：下载 `.dmg` 文件并拖入 Applications 文件夹
 
-            ### 🔧 系统要求
+            ### 系统要求
             - Windows 10/11 64位
             - macOS 11+ (Big Sur)
             - WebView2 Runtime（Windows 10+ 已内置）
@@ -124,3 +140,70 @@ jobs:
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/bundle/dmg/*.dmg
+
+  generate-update-json:
+    needs: [build-and-release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: version-info
+          path: version-info
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sigs-*
+          merge-multiple: true
+
+      - name: Generate latest.json
+        id: generate
+        shell: pwsh
+        run: |
+          $info = Get-Content version-info/version.json | ConvertFrom-Json
+          $tag = $info.tag
+          $version = $tag -replace '^v', ''
+          $repo = "${{ github.repository }}"
+
+          $platforms = @{}
+
+          Get-ChildItem -Filter "*.sig" | ForEach-Object {
+            $sig = Get-Content $_.FullName -Raw
+            $sigFileName = $_.Name
+            $installerName = $sigFileName -replace '\.sig$', ''
+
+            if ($installerName -match 'x64-setup') {
+              $platforms["windows-x86_64"] = @{
+                signature = $sig
+                url = "https://github.com/$repo/releases/download/$tag/$installerName"
+              }
+            } elseif ($installerName -match 'aarch64|arm64') {
+              $platforms["darwin-aarch64"] = @{
+                signature = $sig
+                url = "https://github.com/$repo/releases/download/$tag/$installerName"
+              }
+            } else {
+              $platforms["darwin-x86_64"] = @{
+                signature = $sig
+                url = "https://github.com/$repo/releases/download/$tag/$installerName"
+              }
+            }
+          }
+
+          $json = @{
+            version = $version
+            notes = ""
+            pub_date = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+            platforms = $platforms
+          }
+
+          $json | ConvertTo-Json -Depth 10 | Set-Content latest.json
+          Get-Content latest.json
+          Write-Output "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Upload latest.json to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ steps.generate.outputs.tag }}" latest.json --clobber

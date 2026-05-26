@@ -12,6 +12,7 @@ import { DropOverlay } from "@/components/DropOverlay";
 import { BatchConvertDialog } from "@/components/BatchConvertDialog";
 import { BatchRenameDialog } from "@/components/BatchRenameDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
+import { AboutDialog } from "@/components/AboutDialog";
 import { getFileSize, saveImageAs, showInFolder, saveTextFile } from "@/lib/api";
 import { formatFileSize } from "@/lib/utils";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -45,6 +46,7 @@ function App() {
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const [recentFiles, setRecentFiles] = useState<string[]>([]);
   const [fileType, setFileType] = useState<string | null>(null);
   const [fileModified, setFileModified] = useState<string | null>(null);
@@ -272,6 +274,7 @@ function App() {
         onBatchConvert={() => setShowConvertDialog(true)}
         onBatchRename={() => setShowRenameDialog(true)}
         onSettings={() => setShowSettings(true)}
+        onAbout={() => setShowAbout(true)}
         hasOcr={state.ocrResult !== null && state.ocrResult.full_text.length > 0}
         onExportOcr={handleExportOcr}
         theme={theme}
@@ -382,6 +385,11 @@ function App() {
       <SettingsDialog
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
+      />
+
+      <AboutDialog
+        isOpen={showAbout}
+        onClose={() => setShowAbout(false)}
       />
     </div>
   );

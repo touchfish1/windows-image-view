@@ -39,3 +39,6 @@ src-tauri/paddleocr/
 
 # Download cache (7z archives, 7zr.exe)
 src-tauri/.downloads/
+
+# Signing keys (used for auto-updates)
+src-tauri/.tauri/
