@@ -61,6 +61,10 @@ jobs:
           } else {
             $tag = "${{ github.ref_name }}"
             $ver = $tag -replace '^v', ''
+            $tauriConf = "src-tauri/tauri.conf.json"
+            (Get-Content $tauriConf) -replace '"version": ".*"', "`"version`": `"$ver`"" | Set-Content $tauriConf
+            $cargoToml = "src-tauri/Cargo.toml"
+            (Get-Content $cargoToml) -replace '^version = "\d+\.\d+\.\d+"', "version = `"$ver`"" | Set-Content $cargoToml
             "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
             "display=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
             "app_version=$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
