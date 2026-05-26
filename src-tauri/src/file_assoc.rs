@@ -139,8 +139,12 @@ pub fn open_default_apps_settings() -> Result<(), String> {
     // Ensure we're registered as a default program candidate first
     let _ = register_as_default_program();
 
-    // Deep-link to our app in Windows 10/11 Settings (requires Windows 11 2023+ or Win10)
-    // If deep-link fails, fall back to generic default apps page
+    // Try COM-based SetAppAsDefault first — direct, no Settings page needed
+    if set_default_for_all().is_ok() {
+        return Ok(());
+    }
+
+    // Fallback: Deep-link to our app in Windows 10/11 Settings
     let deep_link = format!("ms-settings:defaultapps?registeredAppUser={}", APP_NAME);
     let result = std::process::Command::new("cmd")
         .args(["/c", "start", "", &deep_link])
@@ -161,6 +165,42 @@ pub fn open_default_apps_settings() -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// Try to set as default for all extensions via COM.
+/// Uses IApplicationAssociationRegistration::SetAppAsDefault,
+/// which works on Windows 10/11 for non-enforced extensions (images).
+fn set_default_for_all() -> Result<(), String> {
+    use windows::core::{GUID, HSTRING};
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX, COINIT_APARTMENTTHREADED};
+    use windows::Win32::UI::Shell::{IApplicationAssociationRegistration, ASSOCIATIONTYPE};
+
+    // CLSID_ApplicationAssociationRegistration = {591209C7-767B-42B2-9FBA-44EE4615B2A8}
+    const CLSID: GUID = GUID { data1: 0x591209C7, data2: 0x767B, data3: 0x42B2, data4: [0x9F, 0xBA, 0x44, 0xEE, 0x46, 0x15, 0xB2, 0xA8] };
+
+    unsafe {
+        // COM may already be initialized by the webview — S_FALSE means "already done"
+        let co_result = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        let needs_uninit = co_result.is_ok();
+
+        let result = (|| -> windows::core::Result<()> {
+            let reg: IApplicationAssociationRegistration =
+                CoCreateInstance(&CLSID, None, CLSCTX(1))?;
+
+            let progid = HSTRING::from(APP_NAME);
+            for ext in EXTENSIONS {
+                let ext_str = HSTRING::from(format!(".{}", ext));
+                reg.SetAppAsDefault(&progid, &ext_str, ASSOCIATIONTYPE(0))?;
+            }
+            Ok(())
+        })();
+
+        if needs_uninit {
+            CoUninitialize();
+        }
+
+        result.map_err(|e| format!("设置默认关联失败: {}", e))
+    }
 }
 
 /// Registers the app as a "Default Program" candidate in Windows.
