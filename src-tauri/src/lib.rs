@@ -1,9 +1,11 @@
 pub mod commands;
 pub mod image_loader;
 pub mod ocr_engine;
+#[cfg(windows)]
 pub mod paddle_ocr;
 pub mod exif;
 pub mod batch;
+#[cfg(windows)]
 pub mod file_assoc;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -14,6 +16,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::default().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
+            #[cfg(windows)]
             paddle_ocr::init(app);
             Ok(())
         })
@@ -28,10 +31,15 @@ pub fn run() {
             commands::preview_rename,
             commands::save_image_as,
             commands::show_in_folder,
+            #[cfg(windows)]
             commands::register_file_assoc,
+            #[cfg(windows)]
             commands::unregister_file_assoc,
+            #[cfg(windows)]
             commands::check_file_assoc,
+            #[cfg(windows)]
             commands::open_default_apps,
+            #[cfg(windows)]
             commands::register_default_program,
             commands::move_to_trash,
             commands::write_text_file,

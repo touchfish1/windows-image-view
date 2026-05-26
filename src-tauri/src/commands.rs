@@ -1,4 +1,4 @@
-use crate::{image_loader, ocr_engine, paddle_ocr};
+use crate::{image_loader, ocr_engine};
 
 #[tauri::command]
 pub fn open_image(path: String) -> Result<image_loader::ImageInfo, String> {
@@ -6,29 +6,32 @@ pub fn open_image(path: String) -> Result<image_loader::ImageInfo, String> {
 }
 
 #[tauri::command]
-pub fn run_ocr(path: String, _lang: Option<String>) -> Result<paddle_ocr::OcrResult, String> {
-    // Try PaddleOCR-json first (best accuracy, especially for Chinese)
-    if paddle_ocr::is_available() {
-        match paddle_ocr::run_ocr(&path) {
-            Ok(result) if !result.blocks.is_empty() => return Ok(result),
-            Ok(_) => { /* empty — fall through */ }
-            Err(e) => eprintln!("PaddleOCR failed, falling back to Windows OCR: {e}"),
+pub fn run_ocr(path: String, _lang: Option<String>) -> Result<ocr_engine::OcrResult, String> {
+    #[cfg(windows)]
+    {
+        // Try PaddleOCR-json first (best accuracy, especially for Chinese)
+        if crate::paddle_ocr::is_available() {
+            match crate::paddle_ocr::run_ocr(&path) {
+                Ok(result) if !result.blocks.is_empty() => {
+                    return Ok(ocr_engine::OcrResult {
+                        blocks: result.blocks.into_iter().map(|b| ocr_engine::OcrBlock {
+                            text: b.text,
+                            bbox_x: b.bbox_x,
+                            bbox_y: b.bbox_y,
+                            width: b.width,
+                            height: b.height,
+                        }).collect(),
+                        full_text: result.full_text,
+                    });
+                }
+                Ok(_) => { /* empty — fall through */ }
+                Err(e) => eprintln!("PaddleOCR failed, falling back: {e}"),
+            }
         }
     }
 
-    // Fall back to Windows OCR
-    let win_result = ocr_engine::run_ocr(&path, "zh-Hans")?;
-    Ok(paddle_ocr::OcrResult {
-        blocks: win_result.blocks.into_iter().map(|b| paddle_ocr::OcrBlock {
-            text: b.text,
-            bbox_x: b.bbox_x,
-            bbox_y: b.bbox_y,
-            width: b.width,
-            height: b.height,
-        }).collect(),
-        full_text: win_result.full_text,
-        engine: "Windows OCR".into(),
-    })
+    let lang = _lang.unwrap_or_default();
+    ocr_engine::run_ocr(&path, &lang)
 }
 
 #[tauri::command]
@@ -101,6 +104,7 @@ pub fn show_in_folder(path: String) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(windows)]
 #[tauri::command]
 pub fn register_file_assoc(extensions: Vec<String>) -> Result<(), String> {
     for ext in &extensions {
@@ -109,6 +113,7 @@ pub fn register_file_assoc(extensions: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(windows)]
 #[tauri::command]
 pub fn unregister_file_assoc(extensions: Vec<String>) -> Result<(), String> {
     for ext in &extensions {
@@ -117,16 +122,19 @@ pub fn unregister_file_assoc(extensions: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(windows)]
 #[tauri::command]
 pub fn check_file_assoc() -> Vec<crate::file_assoc::AssocStatus> {
     crate::file_assoc::check_registration()
 }
 
+#[cfg(windows)]
 #[tauri::command]
 pub fn open_default_apps() -> Result<(), String> {
     crate::file_assoc::open_default_apps_settings()
 }
 
+#[cfg(windows)]
 #[tauri::command]
 pub fn register_default_program() -> Result<(), String> {
     crate::file_assoc::register_as_default_program()
