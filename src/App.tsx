@@ -14,13 +14,13 @@ import { BatchRenameDialog } from "@/components/BatchRenameDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { AboutDialog } from "@/components/AboutDialog";
 import { DebugPanel } from "@/components/DebugPanel";
-import { getFileSize, saveImageAs, showInFolder, saveTextFile } from "@/lib/api";
+import { getFileSize, saveImageAs, showInFolder, saveTextFile, getLaunchFile } from "@/lib/api";
 import { formatFileSize } from "@/lib/utils";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { save } from "@tauri-apps/plugin-dialog";
 import { loadWindowState, saveWindowState, addRecentFile } from "@/hooks/useWindowState";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 const EMPTY_BLOCKS: never[] = [];
 
@@ -55,7 +55,6 @@ function App() {
   const [fileType, setFileType] = useState<string | null>(null);
   const [fileModified, setFileModified] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const dragCounter = useRef(0);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   const { slideshowState, start: startSlideshow, stop: stopSlideshow, toggle: toggleSlideshow, setInterval: setSlideshowInterval, setOnNext } = useSlideshow(state.imageList.length);
@@ -92,6 +91,10 @@ function App() {
       if ((s as any).theme) {
         setTheme((s as any).theme);
       }
+    });
+    // Open file passed as CLI argument (e.g. when set as default image viewer)
+    getLaunchFile().then((path) => {
+      if (path) openImage(path);
     });
   }, []);
 
@@ -209,43 +212,30 @@ function App() {
     }
   }, [state.ocrResult, state.currentPath]);
 
-  const handleDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    dragCounter.current++;
-    setIsDragging(true);
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    dragCounter.current--;
-    if (dragCounter.current <= 0) {
-      dragCounter.current = 0;
-      setIsDragging(false);
-    }
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    dragCounter.current = 0;
-    setIsDragging(false);
-    const files = Array.from(e.dataTransfer.files);
-    const imageFile = files.find(f => /\.(png|jpg|jpeg|bmp|gif|webp)$/i.test(f.name));
-    if (!imageFile) return;
-    const path = (imageFile as any).path;
-    if (path) {
-      openImage(path);
-      addRecentFile(path).then(() => {
-        setRecentFiles(prev => {
-          const filtered = prev.filter(f => f !== path);
-          return [path, ...filtered].slice(0, 10);
-        });
-      });
-    }
+  // Tauri native drag-drop — provides real file paths from OS file manager
+  useEffect(() => {
+    const unlisten = getCurrentWindow().onDragDropEvent((event) => {
+      if (event.payload.type === "enter") {
+        setIsDragging(true);
+      } else if (event.payload.type === "leave") {
+        setIsDragging(false);
+      } else if (event.payload.type === "drop") {
+        setIsDragging(false);
+        const imagePath = event.payload.paths.find((p: string) =>
+          /\.(png|jpg|jpeg|bmp|gif|webp)$/i.test(p)
+        );
+        if (imagePath) {
+          openImage(imagePath);
+          addRecentFile(imagePath).then(() => {
+            setRecentFiles(prev => {
+              const filtered = prev.filter(f => f !== imagePath);
+              return [imagePath, ...filtered].slice(0, 10);
+            });
+          });
+        }
+      }
+    });
+    return () => { unlisten.then((fn) => fn()); };
   }, [openImage]);
 
   const handleOpenRecent = useCallback((path: string) => {
@@ -301,10 +291,6 @@ function App() {
 
       <div
         className="flex-1 flex overflow-hidden relative"
-        onDragEnter={handleDragEnter}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
       >
         {!isSlideshowPlaying && (
           <ThumbnailSidebar

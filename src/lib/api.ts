@@ -96,6 +96,10 @@ export async function moveToTrash(path: string): Promise<void> {
   return invoke<void>("move_to_trash", { path });
 }
 
+export async function getLaunchFile(): Promise<string | null> {
+  return invoke<string | null>("get_launch_file");
+}
+
 export async function saveTextFile(path: string, content: string): Promise<void> {
   return invoke<void>("write_text_file", { path, content });
 }

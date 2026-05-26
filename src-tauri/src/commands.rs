@@ -1,4 +1,4 @@
-use crate::{image_loader, ocr_engine};
+use crate::{image_loader, ocr_engine, LaunchFile};
 
 #[tauri::command]
 pub fn open_image(path: String) -> Result<image_loader::ImageInfo, String> {
@@ -148,6 +148,11 @@ pub fn register_default_program() -> Result<(), String> {
 #[tauri::command]
 pub fn move_to_trash(path: String) -> Result<(), String> {
     trash::delete(&path).map_err(|e| format!("Failed to move to trash: {}", e))
+}
+
+#[tauri::command]
+pub fn get_launch_file(state: tauri::State<'_, LaunchFile>) -> Option<String> {
+    state.0.lock().unwrap().take()
 }
 
 #[tauri::command]

@@ -1776,7 +1776,7 @@ dependencies = [
 
 [[package]]
 name = "image-viewer-ocr"
-version = "0.2.7"
+version = "0.2.16"
 dependencies = [
  "apple-vision",
  "base64 0.22.1",

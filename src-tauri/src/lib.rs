@@ -1,3 +1,6 @@
+use std::sync::Mutex;
+use tauri::Manager;
+
 pub mod commands;
 pub mod image_loader;
 pub mod ocr_engine;
@@ -7,6 +10,8 @@ pub mod exif;
 pub mod batch;
 #[cfg(windows)]
 pub mod file_assoc;
+
+pub struct LaunchFile(pub Mutex<Option<String>>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -18,6 +23,8 @@ pub fn run() {
         .setup(|app| {
             #[cfg(windows)]
             paddle_ocr::init(app);
+            let launch_file = std::env::args().skip(1).next();
+            app.manage(LaunchFile(Mutex::new(launch_file)));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -43,6 +50,7 @@ pub fn run() {
             commands::register_default_program,
             commands::move_to_trash,
             commands::write_text_file,
+            commands::get_launch_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
