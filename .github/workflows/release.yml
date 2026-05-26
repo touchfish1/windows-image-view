@@ -33,13 +33,13 @@ jobs:
 
       - name: Install Rust (Windows)
         if: matrix.os == 'windows-latest'
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@v1
         with:
           targets: x86_64-pc-windows-msvc
 
       - name: Install Rust (macOS)
         if: matrix.os == 'macos-latest'
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@v1
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
