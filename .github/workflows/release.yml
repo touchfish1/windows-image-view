@@ -96,18 +96,19 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
 
       - name: Sign bundles
-        shell: pwsh
+        shell: bash
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         run: |
-          $keyPath = Join-Path $env:RUNNER_TEMP "private.key"
-          [System.IO.File]::WriteAllText($keyPath, $env:TAURI_SIGNING_PRIVATE_KEY)
-          $bundles = Get-ChildItem -Path src-tauri/target/release/bundle -Recurse -File | Where-Object { $_.Extension -in '.exe','.dmg','.msi' }
-          foreach ($bundle in $bundles) {
-            Write-Output "Signing: $($bundle.FullName)"
-            npx tauri signer sign -k "$keyPath" "$($bundle.FullName)"
-          }
+          printf '%s' "$TAURI_SIGNING_PRIVATE_KEY" > private.key
+          for bundle in src-tauri/target/release/bundle/*/*.{exe,dmg,msi}; do
+            if [ -f "$bundle" ]; then
+              echo "Signing: $bundle"
+              npx tauri signer sign -k private.key "$bundle"
+            fi
+          done
+          rm -f private.key
 
       - name: Upload signatures
         uses: actions/upload-artifact@v4
