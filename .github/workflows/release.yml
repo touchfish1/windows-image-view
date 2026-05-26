@@ -76,7 +76,7 @@ jobs:
 
       - name: Prepare resources (macOS)
         if: matrix.os == 'macos-latest'
-        run: mkdir -p src-tauri/paddleocr
+        run: mkdir -p src-tauri/paddleocr && touch src-tauri/paddleocr/.gitkeep
 
       - name: Build Tauri app
         run: npx tauri build
