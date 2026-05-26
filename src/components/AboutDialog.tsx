@@ -26,6 +26,8 @@ export function AboutDialog({ isOpen, onClose }: AboutDialogProps) {
   const [tauriVersion, setTauriVersion] = useState("");
   const [updateState, setUpdateState] = useState<UpdateStatus>({ status: "idle" });
   const updateRef = useRef<Update | null>(null);
+  const downloadedRef = useRef(0);
+  const totalRef = useRef(0);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -58,15 +60,21 @@ export function AboutDialog({ isOpen, onClose }: AboutDialogProps) {
     if (!update) return;
 
     setUpdateState({ status: "downloading", progress: 0 });
+    downloadedRef.current = 0;
+    totalRef.current = 0;
     try {
       await update.downloadAndInstall((event) => {
         if (event.event === "Started" && event.data.contentLength) {
-          // contentLength known — will track via Progress events
+          totalRef.current = event.data.contentLength;
+          downloadedRef.current = 0;
         } else if (event.event === "Progress") {
-          // Approximate progress; without total size we show indeterminate
+          downloadedRef.current += event.data.chunkLength;
+          const pct = totalRef.current > 0
+            ? Math.round((downloadedRef.current / totalRef.current) * 100)
+            : 0;
           setUpdateState((prev) =>
             prev.status === "downloading"
-              ? { ...prev, progress: Math.min(prev.progress + 5, 90) }
+              ? { ...prev, progress: Math.min(pct, 99) }
               : prev,
           );
         } else if (event.event === "Finished") {
