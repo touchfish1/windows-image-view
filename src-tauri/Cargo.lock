@@ -1999,7 +1999,6 @@ name = "image-viewer-ocr"
 version = "0.2.21"
 dependencies = [
  "apple-vision",
- "base64 0.22.1",
  "image",
  "kamadak-exif",
  "serde",

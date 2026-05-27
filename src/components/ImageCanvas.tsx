@@ -10,6 +10,7 @@ function easeOutCubic(t: number): number {
 
 interface ImageCanvasProps {
   imageInfo: ImageInfo | null;
+  imageUrl: string | null;
   ocrBlocks: OcrBlock[];
   zoom: number;
   offset: { x: number; y: number };
@@ -33,6 +34,7 @@ interface ImageCanvasProps {
 
 export function ImageCanvas({
   imageInfo,
+  imageUrl,
   ocrBlocks,
   zoom,
   offset,
@@ -120,7 +122,7 @@ export function ImageCanvas({
       return;
     }
     const img = new Image();
-    img.src = imageInfo.data;
+    img.src = imageUrl ?? "";
     img.onload = () => {
       cancelAnimationFrame(animationFrameRef.current);
 
@@ -147,9 +149,9 @@ export function ImageCanvas({
       drawCanvas();
     };
     img.onerror = () => {
-      console.error("Failed to load image from data URL (CSP may be blocking data: URIs)");
+      console.error("Failed to load image from asset URL");
     };
-  }, [imageInfo]);
+  }, [imageUrl]);
 
   // Redraw — reads zoom/offset/zoomMode from live refs for immediate responsiveness
   const drawCanvas = useCallback(() => {

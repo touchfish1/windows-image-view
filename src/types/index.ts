@@ -15,7 +15,6 @@ export interface OcrResult {
 export interface ImageInfo {
   width: number;
   height: number;
-  data: string;
   path: string;
 }
 
@@ -60,6 +59,7 @@ export interface AssocStatus {
 
 export interface ImageViewerState {
   imageInfo: ImageInfo | null;
+  imageUrl: string | null;
   ocrResult: OcrResult | null;
   ocrStatus: OcrStatus;
   zoom: number;

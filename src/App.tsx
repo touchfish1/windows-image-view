@@ -319,6 +319,7 @@ function App() {
         )}
         <ImageCanvas
           imageInfo={state.imageInfo}
+          imageUrl={state.imageUrl}
           ocrBlocks={state.ocrResult?.blocks ?? EMPTY_BLOCKS}
           zoom={state.zoom}
           offset={state.offset}

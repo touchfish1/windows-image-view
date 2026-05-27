@@ -11,6 +11,7 @@ const MAX_ZOOM = 10.0;
 export function useImageViewer() {
   const [state, setState] = useState<ImageViewerState>({
     imageInfo: null,
+    imageUrl: null,
     ocrResult: null,
     ocrStatus: "idle",
     zoom: 1,
@@ -33,11 +34,13 @@ export function useImageViewer() {
 
     try {
       const imageInfo = await loadImage(resolvedPath);
+      const imageUrl = convertFileSrc(resolvedPath);
       const images = await listImages(resolvedPath);
       const idx = images.indexOf(resolvedPath);
       imageListRef.current = images;
       setState({
         imageInfo,
+        imageUrl,
         ocrResult: null,
         ocrStatus: "running",
         zoom: 1,
@@ -78,9 +81,11 @@ export function useImageViewer() {
     if (!path) return;
     try {
       const imageInfo = await loadImage(path);
+      const imageUrl = convertFileSrc(path);
       setState((prev) => ({
         ...prev,
         imageInfo,
+        imageUrl,
         currentIndex: index,
         ocrResult: null,
         ocrStatus: "running",
