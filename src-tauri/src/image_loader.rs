@@ -16,6 +16,14 @@ pub struct ImageInfo {
     pub thumbnail_url: Option<String>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CropRect {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
 fn base64_encode(data: &[u8]) -> String {
     let mut result = String::with_capacity((data.len() + 2) / 3 * 4);
     for chunk in data.chunks(3) {
@@ -85,4 +93,140 @@ fn generate_thumbnail(p: &Path, width: u32, height: u32) -> Option<String> {
 
     let b64 = base64_encode(&buf.into_inner());
     Some(format!("data:image/jpeg;base64,{}", b64))
+}
+
+/// Crop a region from the image and save as `<stem>_cropped.<ext>` next to the original.
+/// Returns the path of the new file.
+pub fn crop_image(path: &str, rect: &CropRect) -> Result<String, String> {
+    let p = Path::new(path);
+
+    // Validate crop rect
+    let (orig_w, orig_h) = image::image_dimensions(p)
+        .map_err(|e| format!("Failed to get image dimensions: {}", e))?;
+    if rect.width == 0 || rect.height == 0 {
+        return Err("Crop region must have non-zero width and height".into());
+    }
+    if rect.x + rect.width > orig_w || rect.y + rect.height > orig_h {
+        return Err(format!(
+            "Crop region ({}+{} x {}+{}) exceeds image bounds ({}x{})",
+            rect.x, rect.width, rect.y, rect.height, orig_w, orig_h
+        ));
+    }
+
+    let img = image::open(p).map_err(|e| format!("Failed to open image: {}", e))?;
+    let cropped = img.crop_imm(rect.x, rect.y, rect.width, rect.height);
+
+    // Generate new filename: stem_cropped.ext
+    let stem = p.file_stem().unwrap_or_default().to_string_lossy();
+    let ext = p.extension().unwrap_or_default().to_string_lossy();
+    let new_path = p.with_file_name(format!("{}_cropped.{}", stem, ext));
+
+    cropped
+        .save(&new_path)
+        .map_err(|e| format!("Failed to save cropped image: {}", e))?;
+
+    Ok(new_path.to_string_lossy().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+
+    /// Create a solid-color PNG for testing. Returns (path, width, height).
+    fn create_test_image(name: &str, w: u32, h: u32) -> PathBuf {
+        let dir = std::env::temp_dir().join("image_viewer_ocr_test");
+        let _ = fs::create_dir_all(&dir);
+        let path = dir.join(format!("{}_{}x{}.png", name, w, h));
+        let img = image::RgbaImage::from_fn(w, h, |_, _| {
+            image::Rgba([128u8, 64, 192, 255])
+        });
+        img.save(&path).expect("failed to write test png");
+        path
+    }
+
+    fn path_str(p: &PathBuf) -> String {
+        p.to_string_lossy().to_string()
+    }
+
+    #[test]
+    fn test_crop_valid_region() {
+        let src = create_test_image("valid", 100, 100);
+        let rect = CropRect { x: 10, y: 10, width: 30, height: 30 };
+        let result = crop_image(&path_str(&src), &rect);
+        assert!(result.is_ok(), "crop should succeed: {:?}", result.err());
+
+        let cropped = result.unwrap();
+        let cropped_path = Path::new(&cropped);
+        assert!(cropped_path.exists(), "cropped file should exist");
+
+        let (cw, ch) = image::image_dimensions(cropped_path).unwrap();
+        assert_eq!(cw, 30, "cropped width");
+        assert_eq!(ch, 30, "cropped height");
+
+        // Cleanup
+        let _ = fs::remove_file(&src);
+        let _ = fs::remove_file(cropped_path);
+    }
+
+    #[test]
+    fn test_crop_full_image() {
+        let src = create_test_image("full", 64, 48);
+        let rect = CropRect { x: 0, y: 0, width: 64, height: 48 };
+        let result = crop_image(&path_str(&src), &rect);
+        assert!(result.is_ok());
+
+        let cropped = result.unwrap();
+        let cropped_path = Path::new(&cropped);
+        let (cw, ch) = image::image_dimensions(cropped_path).unwrap();
+        assert_eq!(cw, 64);
+        assert_eq!(ch, 48);
+
+        let _ = fs::remove_file(&src);
+        let _ = fs::remove_file(cropped_path);
+    }
+
+    #[test]
+    fn test_crop_zero_width() {
+        let src = create_test_image("zw", 50, 50);
+        let rect = CropRect { x: 0, y: 0, width: 0, height: 10 };
+        let result = crop_image(&path_str(&src), &rect);
+        assert!(result.is_err(), "zero width should fail");
+        let _ = fs::remove_file(&src);
+    }
+
+    #[test]
+    fn test_crop_zero_height() {
+        let src = create_test_image("zh", 50, 50);
+        let rect = CropRect { x: 0, y: 0, width: 10, height: 0 };
+        let result = crop_image(&path_str(&src), &rect);
+        assert!(result.is_err(), "zero height should fail");
+        let _ = fs::remove_file(&src);
+    }
+
+    #[test]
+    fn test_crop_out_of_bounds_x() {
+        let src = create_test_image("oobx", 50, 50);
+        let rect = CropRect { x: 40, y: 0, width: 20, height: 10 };
+        let result = crop_image(&path_str(&src), &rect);
+        assert!(result.is_err(), "should error when x+width > orig_w");
+        let _ = fs::remove_file(&src);
+    }
+
+    #[test]
+    fn test_crop_out_of_bounds_y() {
+        let src = create_test_image("ooby", 50, 50);
+        let rect = CropRect { x: 0, y: 45, width: 10, height: 20 };
+        let result = crop_image(&path_str(&src), &rect);
+        assert!(result.is_err(), "should error when y+height > orig_h");
+        let _ = fs::remove_file(&src);
+    }
+
+    #[test]
+    fn test_crop_invalid_path() {
+        let rect = CropRect { x: 0, y: 0, width: 10, height: 10 };
+        let result = crop_image("/nonexistent/path.png", &rect);
+        assert!(result.is_err(), "invalid path should fail");
+    }
 }
