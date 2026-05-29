@@ -1,7 +1,7 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { debugStore } from "@/lib/debug";
-import type { ImageInfo, OcrResult, ExifData, ConvertOptions, ConvertResult, RenameItem, RenameResult, AssocStatus } from "@/types";
+import type { ImageInfo, OcrResult, ExifData, ConvertOptions, ConvertResult, RenameItem, RenameResult, AssocStatus, CropRect } from "@/types";
 
 /** Wrapped invoke that logs all IPC calls to the debug panel */
 async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
@@ -98,6 +98,10 @@ export async function moveToTrash(path: string): Promise<void> {
 
 export async function getLaunchFile(): Promise<string | null> {
   return invoke<string | null>("get_launch_file");
+}
+
+export async function cropImage(path: string, rect: CropRect): Promise<string> {
+  return invoke<string>("crop_image", { path, rect });
 }
 
 export async function saveTextFile(path: string, content: string): Promise<void> {

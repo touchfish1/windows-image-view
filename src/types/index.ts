@@ -20,6 +20,14 @@ export interface ImageInfo {
   thumbnail_url: string | null;
 }
 
+/** Rectangle in image pixel coordinates for crop operations */
+export interface CropRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export type OcrStatus = "idle" | "running" | "done" | "error";
 
 export type ZoomMode = "fit" | "free";
@@ -76,4 +84,7 @@ export interface ImageViewerState {
   rotation: number;  // 0 | 90 | 180 | 270
   flipH: boolean;
   flipV: boolean;
+  cropMode: boolean;
+  cropRect: CropRect | null;
+  favorites: string[];
 }
