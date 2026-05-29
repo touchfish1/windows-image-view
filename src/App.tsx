@@ -43,6 +43,10 @@ function App() {
     setRotation,
     setFlipH,
     setFlipV,
+    setCropMode,
+    setCropRect,
+    handleCropConfirm,
+    toggleFavorite,
     selectedText,
   } = useImageViewer();
 
@@ -91,21 +95,24 @@ function App() {
   }, [setOnNext, navigateNext]);
 
   useEffect(() => {
-    loadWindowState().then((s) => {
+    let cancelled = false;
+    Promise.all([
+      loadWindowState(),
+      getLaunchFile(),
+      getCurrentWindow().show(), // Reveal window after WebView is fully rendered
+    ]).then(([s, launchPath]) => {
+      if (cancelled) return;
       setShowThumbnails(s.showThumbnails);
       setShowRightSidebar(s.showRightSidebar);
       setRecentFiles(s.recentFiles);
       setTheme(s.theme);
-    });
-    // Open file passed as CLI argument (e.g. when set as default image viewer)
-    getLaunchFile().then((path) => {
-      if (path) openImage(path);
+      if (launchPath) openImage(launchPath);
     });
     // Listen for file-open events from single-instance plugin (e.g. "Open with" from Windows)
     const unlisten = listen<string>("file-open", (event) => {
       openImage(event.payload);
     });
-    return () => { unlisten.then((fn) => fn()); };
+    return () => { cancelled = true; unlisten.then((fn) => fn()); };
   }, []);
 
   useEffect(() => {
@@ -270,6 +277,17 @@ function App() {
     });
   }, [openImage]);
 
+  const handleToggleCrop = useCallback(() => {
+    setCropMode(!state.cropMode);
+    if (state.cropMode) {
+      setCropRect(null); // Clear rect when exiting crop mode
+    }
+  }, [state.cropMode, setCropMode, setCropRect]);
+
+  const handleCrop = useCallback(async () => {
+    await handleCropConfirm();
+  }, [handleCropConfirm]);
+
   const isSlideshowPlaying = slideshowState.isPlaying;
 
   return (
@@ -315,6 +333,11 @@ function App() {
         onRotate={setRotation}
         onFlipH={() => setFlipH(!state.flipH)}
         onFlipV={() => setFlipV(!state.flipV)}
+        cropMode={state.cropMode}
+        onToggleCrop={handleToggleCrop}
+        onCropConfirm={handleCrop}
+        isFavorite={state.currentPath ? state.favorites.includes(state.currentPath) ?? false : false}
+        onToggleFavorite={() => state.currentPath && toggleFavorite(state.currentPath)}
       />}
 
       <div
@@ -327,6 +350,7 @@ function App() {
             imageList={state.imageList}
             onNavigate={navigateTo}
             isOpen={showThumbnails}
+            favorites={state.favorites}
             onToggle={() => {
               const next = !showThumbnails;
               setShowThumbnails(next);
@@ -359,6 +383,9 @@ function App() {
           rotation={state.rotation}
           flipH={state.flipH}
           flipV={state.flipV}
+          cropMode={state.cropMode}
+          cropRect={state.cropRect}
+          onCropRectChange={setCropRect}
         />
         {!isSlideshowPlaying && !state.isFullscreen && showRightSidebar && (
           <RightSidebar

@@ -22,6 +22,8 @@ import {
   Info,
   ArrowLeftRight,
   ArrowUpDown,
+  Crop,
+  Heart,
 } from "lucide-react";
 
 interface ToolbarProps {
@@ -57,6 +59,11 @@ interface ToolbarProps {
   onRotate?: (rotation: number) => void;
   onFlipH?: () => void;
   onFlipV?: () => void;
+  cropMode?: boolean;
+  onToggleCrop?: () => void;
+  onCropConfirm?: () => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
 }
 
 export function Toolbar({
@@ -92,6 +99,11 @@ export function Toolbar({
   onRotate,
   onFlipH,
   onFlipV,
+  cropMode = false,
+  onToggleCrop,
+  onCropConfirm,
+  isFavorite = false,
+  onToggleFavorite,
 }: ToolbarProps) {
   const [showRecent, setShowRecent] = useState(false);
   const recentRef = useRef<HTMLDivElement>(null);
@@ -274,6 +286,60 @@ export function Toolbar({
         >
           <ArrowUpDown className="h-4 w-4" />
         </Button>
+      </div>
+
+      {/* Favorites */}
+      <Button
+        variant="ghost"
+        size="icon"
+        disabled={!hasImage}
+        onClick={onToggleFavorite}
+        title={isFavorite ? "取消收藏" : "收藏图片"}
+        className={`h-8 w-8 transition-all duration-150 disabled:opacity-30 ${
+          isFavorite
+            ? "text-red-500 hover:text-red-400 hover:bg-red-500/10"
+            : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
+        }`}
+      >
+        <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+      </Button>
+
+      {/* Crop */}
+      <div className="flex items-center gap-0.5">
+        {cropMode ? (
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              disabled={!hasImage}
+              onClick={onCropConfirm}
+              title="确认裁剪"
+              className="h-8 w-8 text-green-500 hover:text-green-400 hover:bg-green-500/10 transition-all duration-150 disabled:opacity-30"
+            >
+              <Crop className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onToggleCrop}
+              title="取消裁剪"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-150"
+            >
+              <span className="text-base leading-none">✕</span>
+            </Button>
+          </>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled={!hasImage}
+            onClick={onToggleCrop}
+            title="裁剪图片"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/60 active:bg-accent transition-all duration-150 disabled:opacity-30"
+          >
+            <Crop className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       <div className="w-px h-5 bg-border/60 mx-0.5" />

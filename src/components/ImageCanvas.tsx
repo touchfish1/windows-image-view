@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback } from "react";
-import type { ImageInfo, OcrBlock } from "@/types";
+import type { ImageInfo, OcrBlock, CropRect } from "@/types";
 import { joinSelectedText } from "@/lib/utils";
 import { ImageContextMenu } from "./ImageContextMenu";
 import { ImageIcon, FolderOpen, MousePointer2, Keyboard } from "lucide-react";
@@ -33,6 +33,9 @@ interface ImageCanvasProps {
   rotation?: number;
   flipH?: boolean;
   flipV?: boolean;
+  cropMode?: boolean;
+  cropRect?: CropRect | null;
+  onCropRectChange?: (rect: CropRect | null) => void;
 }
 
 export function ImageCanvas({
@@ -59,12 +62,17 @@ export function ImageCanvas({
   rotation = 0,
   flipH = false,
   flipV = false,
+  cropMode = false,
+  cropRect,
+  onCropRectChange,
 }: ImageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isPanning = useRef(false);
   const isSelecting = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
   const dragStartBlock = useRef(-1);
+  const cropDragStart = useRef<{ x: number; y: number } | null>(null);
+  const cropDragCurrent = useRef<{ x: number; y: number } | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const animationFrameRef = useRef<number>(0);
   const transitionRef = useRef<{
@@ -311,8 +319,57 @@ export function ImageCanvas({
       });
     }
 
+    // Draw crop overlay (in image coordinates — inside the transform context)
+    const drawCropOverlay = () => {
+      // Determine which rect to display: active drag (refs) or finalized (prop)
+      let r: { x: number; y: number; w: number; h: number } | null = null;
+      if (cropDragStart.current && cropDragCurrent.current) {
+        const p1 = screenToImage(cropDragStart.current.x, cropDragStart.current.y);
+        const p2 = screenToImage(cropDragCurrent.current.x, cropDragCurrent.current.y);
+        const rx = Math.min(p1.x, p2.x);
+        const ry = Math.min(p1.y, p2.y);
+        const rw = Math.abs(p2.x - p1.x);
+        const rh = Math.abs(p2.y - p1.y);
+        r = { x: rx, y: ry, w: rw, h: rh };
+      } else if (cropRect) {
+        r = { x: cropRect.x, y: cropRect.y, w: cropRect.width, h: cropRect.height };
+      }
+      if (!r || !img) return;
+      // Clamp to image bounds
+      const cx = Math.max(0, Math.min(r.x, img.width));
+      const cy = Math.max(0, Math.min(r.y, img.height));
+      const cw = Math.min(r.w, img.width - cx);
+      const ch = Math.min(r.h, img.height - cy);
+      if (cw <= 0 || ch <= 0) return;
+      // Dimmed overlay over full image, punch out crop region
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+      ctx.fillRect(0, 0, img.width, img.height);
+      ctx.clearRect(cx, cy, cw, ch);
+      // Dashed border
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(cx, cy, cw, ch);
+      ctx.setLineDash([]);
+      // Corner handles
+      const hs = 8;
+      ctx.fillStyle = 'white';
+      ctx.fillRect(cx - hs / 2, cy - hs / 2, hs, hs);
+      ctx.fillRect(cx + cw - hs / 2, cy - hs / 2, hs, hs);
+      ctx.fillRect(cx - hs / 2, cy + ch - hs / 2, hs, hs);
+      ctx.fillRect(cx + cw - hs / 2, cy + ch - hs / 2, hs, hs);
+      // Dimension label
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.font = '12px Inter, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      const label = `${Math.round(cw)} × ${Math.round(ch)}`;
+      ctx.fillText(label, cx + 4, cy - 4);
+    };
+    drawCropOverlay();
+
     ctx.restore();
-  }, [ocrBlocks, selectionRange, calculateFitZoom, imageInfo]);
+  }, [ocrBlocks, selectionRange, calculateFitZoom, imageInfo, cropRect, screenToImage]);
 
   useEffect(() => {
     drawCanvas();
@@ -404,6 +461,16 @@ export function ImageCanvas({
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
+      if (cropMode && e.button === 0) {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        cropDragStart.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        cropDragCurrent.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        canvas.style.cursor = 'crosshair';
+        return;
+      }
+
       // Double-click to toggle fullscreen (left button only)
       if (e.button === 0 && e.detail === 2 && onToggleFullscreen) {
         onToggleFullscreen();
@@ -431,7 +498,7 @@ export function ImageCanvas({
         lastPos.current = { x: e.clientX, y: e.clientY };
       }
     },
-    [hitTestBlock, onSelectionChange, onToggleFullscreen]
+    [cropMode, hitTestBlock, onSelectionChange, onToggleFullscreen]
   );
 
   const handleMouseMove = useCallback(
@@ -442,8 +509,16 @@ export function ImageCanvas({
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
 
+      // Crop mode: track drag and redraw overlay in real-time
+      if (cropMode && cropDragStart.current) {
+        cropDragCurrent.current = { x: mx, y: my };
+        canvas.style.cursor = 'crosshair';
+        drawCanvas();
+        return;
+      }
+
       // Update cursor: text when selecting or hovering a block, grabbing when panning
-      const hit = hitTestBlock(mx, my);
+      const hit = cropMode ? -1 : hitTestBlock(mx, my);
       canvas.style.cursor = isSelecting.current
         ? "text"
         : isPanning.current
@@ -474,11 +549,34 @@ export function ImageCanvas({
         onPan(dx, dy);
       }
     },
-    [hitTestBlock, onPan, onSelectionChange]
+    [cropMode, hitTestBlock, onPan, onSelectionChange, drawCanvas]
   );
 
   const handleMouseUp = useCallback(
     (e: React.MouseEvent) => {
+      if (cropMode && cropDragStart.current && cropDragCurrent.current && onCropRectChange && imageRef.current) {
+        const p1 = screenToImage(cropDragStart.current.x, cropDragStart.current.y);
+        const p2 = screenToImage(cropDragCurrent.current.x, cropDragCurrent.current.y);
+        const x = Math.min(p1.x, p2.x);
+        const y = Math.min(p1.y, p2.y);
+        const width = Math.abs(p2.x - p1.x);
+        const height = Math.abs(p2.y - p1.y);
+        const img = imageRef.current;
+        // Clamp to image bounds
+        const clampedX = Math.max(0, Math.min(x, img.width));
+        const clampedY = Math.max(0, Math.min(y, img.height));
+        const clampedW = Math.min(width, img.width - clampedX);
+        const clampedH = Math.min(height, img.height - clampedY);
+        if (clampedW >= 4 && clampedH >= 4) {
+          onCropRectChange({ x: Math.round(clampedX), y: Math.round(clampedY), width: Math.round(clampedW), height: Math.round(clampedH) });
+        }
+        cropDragStart.current = null;
+        cropDragCurrent.current = null;
+        canvasRef.current!.style.cursor = 'crosshair';
+        drawCanvas();
+        return;
+      }
+
       isPanning.current = false;
       isSelecting.current = false;
       const canvas = canvasRef.current;
@@ -489,15 +587,18 @@ export function ImageCanvas({
       const hit = hitTestBlock(mx, my);
       canvas.style.cursor = hit >= 0 ? "text" : "grab";
     },
-    [hitTestBlock]
+    [cropMode, onCropRectChange, screenToImage, hitTestBlock, drawCanvas]
   );
 
   const handleMouseLeave = useCallback(() => {
     isPanning.current = false;
     isSelecting.current = false;
+    cropDragStart.current = null;
+    cropDragCurrent.current = null;
     const canvas = canvasRef.current;
     if (canvas) canvas.style.cursor = "grab";
-  }, []);
+    drawCanvas();
+  }, [drawCanvas]);
 
   // Ctrl+C to copy selected text
   useEffect(() => {
@@ -581,6 +682,23 @@ export function ImageCanvas({
           tabIndex={0}
         />
       </ImageContextMenu>
+
+      {/* Crop mode HUD */}
+      {cropMode && imageInfo && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none select-none z-10">
+          <div className="px-3 py-1.5 rounded-lg bg-black/60 backdrop-blur-sm text-[12px] text-white/80 flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+            在图片上拖拽选择裁剪区域
+          </div>
+        </div>
+      )}
+      {cropMode && imageInfo && cropRect && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 pointer-events-none select-none z-10">
+          <div className="px-3 py-1.5 rounded-lg bg-black/60 backdrop-blur-sm text-[12px] text-white/80">
+            已选择 <span className="text-white font-mono">{cropRect.width} × {cropRect.height}</span> 像素
+          </div>
+        </div>
+      )}
 
       {/* HUD: image info overlay */}
       {imageInfo && (

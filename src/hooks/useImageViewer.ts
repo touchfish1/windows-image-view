@@ -1,8 +1,9 @@
-import { useState, useCallback, useRef } from "react";
-import type { ImageViewerState, ZoomMode } from "@/types";
-import { openFileDialog, loadImage, runOcr, listImages } from "@/lib/api";
+import { useState, useCallback, useRef, useEffect } from "react";
+import type { ImageViewerState, ZoomMode, CropRect } from "@/types";
+import { openFileDialog, loadImage, runOcr, listImages, cropImage } from "@/lib/api";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { joinSelectedText } from "@/lib/utils";
+import { loadFavorites, toggleFavoriteInStore } from "@/hooks/useWindowState";
 
 const ZOOM_STEP = 0.1;
 const MIN_ZOOM = 0.1;
@@ -26,6 +27,9 @@ export function useImageViewer() {
     rotation: 0,
     flipH: false,
     flipV: false,
+    cropMode: false,
+    cropRect: null,
+    favorites: [],
   });
 
   const stateRef = useRef(state);
@@ -60,6 +64,9 @@ export function useImageViewer() {
         rotation: 0,
         flipH: false,
         flipV: false,
+        cropMode: false,
+        cropRect: null,
+        favorites: stateRef.current.favorites,
       });
 
       preloadAdjacent(images, idx);
@@ -107,6 +114,8 @@ export function useImageViewer() {
         rotation: 0,
         flipH: false,
         flipV: false,
+        cropMode: false,
+        cropRect: null,
       }));
 
       preloadAdjacent(paths, index);
@@ -213,6 +222,84 @@ export function useImageViewer() {
     setState((prev) => ({ ...prev, flipV }));
   }, []);
 
+  // Load favorites from store on mount
+  useEffect(() => {
+    loadFavorites().then((favs) => {
+      setState((prev) => ({ ...prev, favorites: favs }));
+    });
+  }, []);
+
+  const isFavorite = useCallback(
+    (path: string | null) => {
+      if (!path) return false;
+      return stateRef.current.favorites.includes(path);
+    },
+    []
+  );
+
+  const toggleFavorite = useCallback(async (path: string) => {
+    const added = await toggleFavoriteInStore(path);
+    setState((prev) => ({
+      ...prev,
+      favorites: added
+        ? [...prev.favorites, path]
+        : prev.favorites.filter((f) => f !== path),
+    }));
+  }, []);
+
+  const getFavorites = useCallback((): string[] => {
+    return stateRef.current.favorites;
+  }, []);
+
+  const setCropMode = useCallback((active: boolean) => {
+    setState((prev) => ({
+      ...prev,
+      cropMode: active,
+      cropRect: active ? prev.cropRect : null, // keep rect when entering, clear on exit
+    }));
+  }, []);
+
+  const setCropRect = useCallback((rect: CropRect | null) => {
+    setState((prev) => ({ ...prev, cropRect: rect }));
+  }, []);
+
+  const handleCropConfirm = useCallback(async () => {
+    const { currentPath, cropRect } = stateRef.current;
+    if (!currentPath || !cropRect) return;
+    try {
+      const newPath = await cropImage(currentPath, cropRect);
+      // Open the newly saved cropped image
+      const imageInfo = await loadImage(newPath);
+      const fullResUrl = convertFileSrc(newPath);
+      const imageUrl = imageInfo.thumbnail_url ?? fullResUrl;
+      const images = await listImages(newPath);
+      const idx = images.indexOf(newPath);
+      setState({
+        imageInfo,
+        imageUrl,
+        fullResUrl,
+        ocrResult: null,
+        ocrStatus: "running",
+        zoom: 1,
+        offset: { x: 0, y: 0 },
+        selectionRange: null,
+        currentPath: newPath,
+        imageList: images,
+        currentIndex: idx,
+        zoomMode: "fit",
+        isFullscreen: false,
+        rotation: 0,
+        flipH: false,
+        flipV: false,
+        cropMode: false,
+        cropRect: null,
+        favorites: stateRef.current.favorites,
+      });
+    } catch (err) {
+      console.error("Crop failed:", err);
+    }
+  }, []);
+
   function preloadAdjacent(images: string[], currentIdx: number): void {
     const preload = (path: string) => {
       const link = document.createElement("link");
@@ -243,6 +330,12 @@ export function useImageViewer() {
     setRotation,
     setFlipH,
     setFlipV,
+    setCropMode,
+    setCropRect,
+    handleCropConfirm,
+    isFavorite,
+    toggleFavorite,
+    getFavorites,
     selectedText,
   };
 }
