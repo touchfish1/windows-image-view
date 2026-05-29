@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { X, Image as ImageIcon, Trash2, Copy, FolderOpen, Search } from "lucide-react";
+import { X, Image as ImageIcon, Trash2, Copy, FolderOpen, Search, Heart } from "lucide-react";
 import { moveToTrash, showInFolder } from "@/lib/api";
 import {
   ContextMenu,
@@ -17,6 +17,7 @@ interface ThumbnailSidebarProps {
   onNavigate: (index: number) => void;
   isOpen: boolean;
   onToggle: () => void;
+  favorites?: string[];
 }
 
 export function ThumbnailSidebar({
@@ -26,25 +27,45 @@ export function ThumbnailSidebar({
   onNavigate,
   isOpen,
   onToggle,
+  favorites = [],
 }: ThumbnailSidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterMode, setFilterMode] = useState<'all' | 'favorites'>('all');
 
-  // Compute filtered list & index mapping whenever searchQuery or imageList changes
+  // Compute filtered list & index mapping whenever searchQuery, imageList, filterMode, or favorites changes
   const { filteredList, indexMap } = useMemo(() => {
+    // Apply favorites filter first
+    let workingList = imageList;
+    let workingMap: number[] | null = null;
+    if (filterMode === 'favorites') {
+      const indices: number[] = [];
+      const filtered: string[] = [];
+      const favSet = new Set(favorites);
+      imageList.forEach((path, i) => {
+        if (favSet.has(path)) {
+          filtered.push(path);
+          indices.push(i);
+        }
+      });
+      workingList = filtered;
+      workingMap = indices;
+    }
+
+    // Then apply search filter
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return { filteredList: imageList, indexMap: null as number[] | null };
+    if (!q) return { filteredList: workingList, indexMap: workingMap };
 
     const indices: number[] = [];
     const filtered: string[] = [];
-    imageList.forEach((path, i) => {
+    workingList.forEach((path, i) => {
       const name = path.split(/[\\/]/).pop() ?? "";
       if (name.toLowerCase().includes(q)) {
         filtered.push(path);
-        indices.push(i);
+        indices.push(workingMap ? workingMap[i] : i);
       }
     });
     return { filteredList: filtered, indexMap: indices };
-  }, [searchQuery, imageList]);
+  }, [searchQuery, imageList, filterMode, favorites]);
 
   const handleSelect = (filteredIdx: number) => {
     const realIdx = indexMap ? indexMap[filteredIdx] : filteredIdx;
@@ -68,12 +89,25 @@ export function ThumbnailSidebar({
             缩略图
           </span>
         </div>
-        <button
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={() => setFilterMode(f => f === 'all' ? 'favorites' : 'all')}
+            className={`p-0.5 rounded transition-colors ${
+              filterMode === 'favorites'
+                ? 'text-red-400 bg-red-500/10'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+            }`}
+            title={filterMode === 'favorites' ? '显示全部' : '仅显示收藏'}
+          >
+            <Heart className={`h-3 w-3 ${filterMode === 'favorites' ? 'fill-current' : ''}`} />
+          </button>
+          <button
           onClick={onToggle}
           className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
         >
           <X className="h-3.5 w-3.5" />
         </button>
+      </div>
       </div>
 
       {/* Search — only show when enough thumbnails */}

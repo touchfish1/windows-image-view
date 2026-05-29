@@ -70,3 +70,35 @@ export async function addRecentFile(path: string): Promise<void> {
     console.error('Failed to save recent file:', e);
   }
 }
+
+// --- Favorites ---
+
+export async function loadFavorites(): Promise<string[]> {
+  try {
+    const store = await getStore();
+    return await store.get<string[]>('favorites') ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function toggleFavoriteInStore(path: string): Promise<boolean> {
+  try {
+    const store = await getStore();
+    const favs = await store.get<string[]>('favorites') ?? [];
+    const idx = favs.indexOf(path);
+    if (idx >= 0) {
+      favs.splice(idx, 1);
+      await store.set('favorites', favs);
+      await store.save();
+      return false; // removed
+    } else {
+      favs.push(path);
+      await store.set('favorites', favs);
+      await store.save();
+      return true; // added
+    }
+  } catch {
+    return false;
+  }
+}
