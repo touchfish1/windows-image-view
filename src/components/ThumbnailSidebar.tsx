@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { X, Image as ImageIcon, Trash2, Copy, FolderOpen } from "lucide-react";
+import { X, Image as ImageIcon, Trash2, Copy, FolderOpen, Search } from "lucide-react";
 import { moveToTrash, showInFolder } from "@/lib/api";
 import {
   ContextMenu,
@@ -27,6 +27,35 @@ export function ThumbnailSidebar({
   isOpen,
   onToggle,
 }: ThumbnailSidebarProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Compute filtered list & index mapping whenever searchQuery or imageList changes
+  const { filteredList, indexMap } = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return { filteredList: imageList, indexMap: null as number[] | null };
+
+    const indices: number[] = [];
+    const filtered: string[] = [];
+    imageList.forEach((path, i) => {
+      const name = path.split(/[\\/]/).pop() ?? "";
+      if (name.toLowerCase().includes(q)) {
+        filtered.push(path);
+        indices.push(i);
+      }
+    });
+    return { filteredList: filtered, indexMap: indices };
+  }, [searchQuery, imageList]);
+
+  const handleSelect = (filteredIdx: number) => {
+    const realIdx = indexMap ? indexMap[filteredIdx] : filteredIdx;
+    onNavigate(realIdx);
+  };
+
+  // Derive the currently selected index in filtered space
+  const selectedFilteredIdx = indexMap
+    ? indexMap.indexOf(currentIndex)
+    : currentIndex;
+
   if (!isOpen) return null;
 
   return (
@@ -47,17 +76,50 @@ export function ThumbnailSidebar({
         </button>
       </div>
 
+      {/* Search — only show when enough thumbnails */}
+      {imageList.length > 15 && (
+        <div className="px-2 pt-1.5 pb-1">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={indexMap ? `找到 ${filteredList.length} 张` : "搜索图片..."}
+              className="w-full h-7 pl-6 pr-2 text-[11px] bg-muted/50 border border-border/60 rounded-md
+                         text-foreground/80 placeholder:text-muted-foreground/40
+                         focus:outline-none focus:ring-1 focus:ring-primary/30 focus:border-primary/30
+                         transition-all duration-150"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-foreground/60 transition-colors"
+              >
+                <X className="h-2.5 w-2.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Thumbnails */}
       <div className="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-1.5">
-        {imageList.map((path, idx) => (
-          <ThumbnailItem
-            key={path}
-            path={path}
-            index={idx}
-            isSelected={idx === currentIndex && currentPath !== null}
-            onSelect={onNavigate}
-          />
-        ))}
+        {filteredList.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-24 text-muted-foreground/40 text-[11px]">
+            无匹配图片
+          </div>
+        ) : (
+          filteredList.map((path, filteredIdx) => (
+            <ThumbnailItem
+              key={path}
+              path={path}
+              index={filteredIdx}
+              isSelected={filteredIdx === selectedFilteredIdx && currentPath !== null && selectedFilteredIdx >= 0}
+              onSelect={handleSelect}
+            />
+          ))
+        )}
       </div>
     </div>
   );
