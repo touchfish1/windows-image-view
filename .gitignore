@@ -42,3 +42,6 @@ src-tauri/.downloads/
 
 # Signing keys (used for auto-updates)
 src-tauri/.tauri/
+
+# OpenCode continuation state
+.omo/

@@ -15,7 +15,7 @@ import { SettingsDialog } from "@/components/SettingsDialog";
 import { AboutDialog } from "@/components/AboutDialog";
 import { DebugPanel } from "@/components/DebugPanel";
 import { ShortcutHelp } from "@/components/ShortcutHelp";
-import { getFileSize, saveImageAs, showInFolder, saveTextFile, getLaunchFile } from "@/lib/api";
+import { getFileSize, saveImageAs, showInFolder, saveTextFile, getLaunchFile, getFileModified } from "@/lib/api";
 import { formatFileSize } from "@/lib/utils";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -78,6 +78,13 @@ function App() {
     getFileSize(state.currentPath)
       .then((bytes) => setFileSize(formatFileSize(bytes)))
       .catch(() => setFileSize(null));
+    getFileModified(state.currentPath)
+      .then((ts) => {
+        const d = new Date(ts * 1000);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        setFileModified(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`);
+      })
+      .catch(() => setFileModified(null));
   }, [state.currentPath]);
 
   useEffect(() => {
@@ -336,7 +343,7 @@ function App() {
         cropMode={state.cropMode}
         onToggleCrop={handleToggleCrop}
         onCropConfirm={handleCrop}
-        isFavorite={state.currentPath ? state.favorites.includes(state.currentPath) ?? false : false}
+        isFavorite={state.currentPath ? state.favorites.includes(state.currentPath) : false}
         onToggleFavorite={() => state.currentPath && toggleFavorite(state.currentPath)}
       />}
 

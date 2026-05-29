@@ -48,6 +48,10 @@ export async function getFileSize(path: string): Promise<number> {
   return invoke<number>("get_file_size", { path });
 }
 
+export async function getFileModified(path: string): Promise<number> {
+  return invoke<number>("get_file_modified", { path });
+}
+
 export async function readExif(path: string): Promise<ExifData> {
   return invoke<ExifData>("read_exif", { path });
 }

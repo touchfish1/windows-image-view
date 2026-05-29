@@ -74,6 +74,17 @@ pub fn get_file_size(path: String) -> Result<u64, String> {
 }
 
 #[tauri::command]
+pub fn get_file_modified(path: String) -> Result<u64, String> {
+    std::fs::metadata(&path)
+        .and_then(|m| m.modified().map(|t| {
+            t.duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+        }))
+        .map_err(|e| format!("Failed to read file modified time: {}", e))
+}
+
+#[tauri::command]
 pub fn read_exif(path: String) -> Result<crate::exif::ExifData, String> {
     crate::exif::read_exif(&path)
 }
