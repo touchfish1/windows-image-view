@@ -16,6 +16,8 @@ export interface ImageInfo {
   width: number;
   height: number;
   path: string;
+  /** Base64 JPEG data URL of a downscaled version (null if image ≤ threshold) */
+  thumbnail_url: string | null;
 }
 
 export type OcrStatus = "idle" | "running" | "done" | "error";
@@ -60,6 +62,7 @@ export interface AssocStatus {
 export interface ImageViewerState {
   imageInfo: ImageInfo | null;
   imageUrl: string | null;
+  fullResUrl: string | null;
   ocrResult: OcrResult | null;
   ocrStatus: OcrStatus;
   zoom: number;
@@ -70,4 +73,7 @@ export interface ImageViewerState {
   currentIndex: number;
   zoomMode: ZoomMode;
   isFullscreen: boolean;
+  rotation: number;  // 0 | 90 | 180 | 270
+  flipH: boolean;
+  flipV: boolean;
 }

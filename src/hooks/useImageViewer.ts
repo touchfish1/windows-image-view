@@ -12,6 +12,7 @@ export function useImageViewer() {
   const [state, setState] = useState<ImageViewerState>({
     imageInfo: null,
     imageUrl: null,
+    fullResUrl: null,
     ocrResult: null,
     ocrStatus: "idle",
     zoom: 1,
@@ -22,6 +23,9 @@ export function useImageViewer() {
     currentIndex: -1,
     zoomMode: "fit",
     isFullscreen: false,
+    rotation: 0,
+    flipH: false,
+    flipV: false,
   });
 
   const stateRef = useRef(state);
@@ -34,13 +38,15 @@ export function useImageViewer() {
 
     try {
       const imageInfo = await loadImage(resolvedPath);
-      const imageUrl = convertFileSrc(resolvedPath);
+      const fullResUrl = convertFileSrc(resolvedPath);
+      const imageUrl = imageInfo.thumbnail_url ?? fullResUrl;
       const images = await listImages(resolvedPath);
       const idx = images.indexOf(resolvedPath);
       imageListRef.current = images;
       setState({
         imageInfo,
         imageUrl,
+        fullResUrl,
         ocrResult: null,
         ocrStatus: "running",
         zoom: 1,
@@ -51,6 +57,9 @@ export function useImageViewer() {
         currentIndex: idx,
         zoomMode: "fit",
         isFullscreen: false,
+        rotation: 0,
+        flipH: false,
+        flipV: false,
       });
 
       preloadAdjacent(images, idx);
@@ -81,11 +90,13 @@ export function useImageViewer() {
     if (!path) return;
     try {
       const imageInfo = await loadImage(path);
-      const imageUrl = convertFileSrc(path);
+      const fullResUrl = convertFileSrc(path);
+      const imageUrl = imageInfo.thumbnail_url ?? fullResUrl;
       setState((prev) => ({
         ...prev,
         imageInfo,
         imageUrl,
+        fullResUrl,
         currentIndex: index,
         ocrResult: null,
         ocrStatus: "running",
@@ -93,6 +104,9 @@ export function useImageViewer() {
         offset: { x: 0, y: 0 },
         selectionRange: null,
         currentPath: path,
+        rotation: 0,
+        flipH: false,
+        flipV: false,
       }));
 
       preloadAdjacent(paths, index);
@@ -166,7 +180,14 @@ export function useImageViewer() {
   }, [state]);
 
   const setZoomMode = useCallback((mode: ZoomMode) => {
-    setState((prev) => ({ ...prev, zoomMode: mode }));
+    setState((prev) => ({
+      ...prev,
+      zoomMode: mode,
+      // Swap thumbnail → full-res when leaving fit mode (so zoomed view has native detail)
+      imageUrl: mode === 'free' && prev.fullResUrl && prev.imageUrl !== prev.fullResUrl
+        ? prev.fullResUrl
+        : prev.imageUrl,
+    }));
   }, []);
 
   const setZoomAbsolute = useCallback((zoom: number) => {
@@ -178,6 +199,18 @@ export function useImageViewer() {
 
   const setFullscreen = useCallback((fs: boolean) => {
     setState((prev) => ({ ...prev, isFullscreen: fs }));
+  }, []);
+
+  const setRotation = useCallback((rotation: number) => {
+    setState((prev) => ({ ...prev, rotation: rotation as 0 | 90 | 180 | 270 }));
+  }, []);
+
+  const setFlipH = useCallback((flipH: boolean) => {
+    setState((prev) => ({ ...prev, flipH }));
+  }, []);
+
+  const setFlipV = useCallback((flipV: boolean) => {
+    setState((prev) => ({ ...prev, flipV }));
   }, []);
 
   function preloadAdjacent(images: string[], currentIdx: number): void {
@@ -207,6 +240,9 @@ export function useImageViewer() {
     setZoomMode,
     setZoomAbsolute,
     setFullscreen,
+    setRotation,
+    setFlipH,
+    setFlipV,
     selectedText,
   };
 }

@@ -9,6 +9,7 @@ import {
   Minimize2,
   Fullscreen,
   RotateCcw,
+  RotateCw,
   PanelLeft,
   PanelRight,
   Play,
@@ -19,6 +20,8 @@ import {
   Sun,
   Moon,
   Info,
+  ArrowLeftRight,
+  ArrowUpDown,
 } from "lucide-react";
 
 interface ToolbarProps {
@@ -48,6 +51,12 @@ interface ToolbarProps {
   recentFiles?: string[];
   onOpenFile?: (path: string) => void;
   onAbout?: () => void;
+  rotation?: number;
+  flipH?: boolean;
+  flipV?: boolean;
+  onRotate?: (rotation: number) => void;
+  onFlipH?: () => void;
+  onFlipV?: () => void;
 }
 
 export function Toolbar({
@@ -77,6 +86,12 @@ export function Toolbar({
   recentFiles,
   onOpenFile,
   onAbout,
+  rotation = 0,
+  flipH = false,
+  flipV = false,
+  onRotate,
+  onFlipH,
+  onFlipV,
 }: ToolbarProps) {
   const [showRecent, setShowRecent] = useState(false);
   const recentRef = useRef<HTMLDivElement>(null);
@@ -196,6 +211,68 @@ export function Toolbar({
           className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/60 active:bg-accent transition-all duration-150 disabled:opacity-30"
         >
           <RotateCcw className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="w-px h-5 bg-border/60 mx-0.5" />
+
+      {/* Rotation & Flip */}
+      <div className="flex items-center gap-0.5">
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={!hasImage}
+          onClick={() => onRotate?.(((rotation - 90) % 360 + 360) % 360)}
+          title="向左旋转 (↺)"
+          className={`h-8 w-8 transition-all duration-150 disabled:opacity-30 ${
+            rotation !== 0
+              ? "text-primary hover:text-primary/80 hover:bg-primary/10"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
+          }`}
+        >
+          <RotateCcw className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={!hasImage}
+          onClick={() => onRotate?.(((rotation + 90) % 360 + 360) % 360)}
+          title="向右旋转 (↻)"
+          className={`h-8 w-8 transition-all duration-150 disabled:opacity-30 ${
+            rotation !== 0
+              ? "text-primary hover:text-primary/80 hover:bg-primary/10"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
+          }`}
+        >
+          <RotateCw className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={!hasImage}
+          onClick={onFlipH}
+          title="水平翻转"
+          className={`h-8 w-8 transition-all duration-150 disabled:opacity-30 ${
+            flipH
+              ? "text-primary hover:text-primary/80 hover:bg-primary/10"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
+          }`}
+        >
+          <ArrowLeftRight className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={!hasImage}
+          onClick={onFlipV}
+          title="垂直翻转"
+          className={`h-8 w-8 transition-all duration-150 disabled:opacity-30 ${
+            flipV
+              ? "text-primary hover:text-primary/80 hover:bg-primary/10"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
+          }`}
+        >
+          <ArrowUpDown className="h-4 w-4" />
         </Button>
       </div>
 

@@ -14,6 +14,7 @@ import { BatchRenameDialog } from "@/components/BatchRenameDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { AboutDialog } from "@/components/AboutDialog";
 import { DebugPanel } from "@/components/DebugPanel";
+import { ShortcutHelp } from "@/components/ShortcutHelp";
 import { getFileSize, saveImageAs, showInFolder, saveTextFile, getLaunchFile } from "@/lib/api";
 import { formatFileSize } from "@/lib/utils";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -39,6 +40,9 @@ function App() {
     navigateNext,
     navigatePrev,
     setFullscreen,
+    setRotation,
+    setFlipH,
+    setFlipV,
     selectedText,
   } = useImageViewer();
 
@@ -52,6 +56,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
+  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
   const [recentFiles, setRecentFiles] = useState<string[]>([]);
   const [fileType, setFileType] = useState<string | null>(null);
   const [fileModified, setFileModified] = useState<string | null>(null);
@@ -154,12 +159,18 @@ function App() {
     onEscape: handleEscape,
   });
 
-  // F12 — toggle debug panel
+  // F12 — toggle debug panel, ? — toggle shortcut help
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "F12") {
         e.preventDefault();
         setShowDebug((p) => !p);
+      } else if (e.key === "?" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // Don't toggle when typing in an input
+        const tag = (e.target as HTMLElement).tagName;
+        if (tag !== "INPUT" && tag !== "TEXTAREA") {
+          setShowShortcutHelp((p) => !p);
+        }
       }
     };
     window.addEventListener("keydown", handler);
@@ -298,6 +309,12 @@ function App() {
         onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
         recentFiles={recentFiles}
         onOpenFile={handleOpenRecent}
+        rotation={state.rotation}
+        flipH={state.flipH}
+        flipV={state.flipV}
+        onRotate={setRotation}
+        onFlipH={() => setFlipH(!state.flipH)}
+        onFlipV={() => setFlipV(!state.flipV)}
       />}
 
       <div
@@ -339,6 +356,9 @@ function App() {
           onToggleFullscreen={toggleFullscreen}
           imageFileName={getFileName()}
           imageDimensions={state.imageInfo ? { width: state.imageInfo.width, height: state.imageInfo.height } : null}
+          rotation={state.rotation}
+          flipH={state.flipH}
+          flipV={state.flipV}
         />
         {!isSlideshowPlaying && !state.isFullscreen && showRightSidebar && (
           <RightSidebar
@@ -416,6 +436,11 @@ function App() {
       <DebugPanel
         isOpen={showDebug}
         onClose={() => setShowDebug(false)}
+      />
+
+      <ShortcutHelp
+        isOpen={showShortcutHelp}
+        onClose={() => setShowShortcutHelp(false)}
       />
     </div>
   );

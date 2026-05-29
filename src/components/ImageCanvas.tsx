@@ -30,6 +30,9 @@ interface ImageCanvasProps {
   onToggleFullscreen?: () => void;
   imageFileName?: string | null;
   imageDimensions?: { width: number; height: number } | null;
+  rotation?: number;
+  flipH?: boolean;
+  flipV?: boolean;
 }
 
 export function ImageCanvas({
@@ -53,6 +56,9 @@ export function ImageCanvas({
   onToggleFullscreen,
   imageFileName,
   imageDimensions,
+  rotation = 0,
+  flipH = false,
+  flipV = false,
 }: ImageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isPanning = useRef(false);
@@ -80,10 +86,13 @@ export function ImageCanvas({
     const canvas = canvasRef.current;
     const img = imageRef.current;
     if (!canvas || !img) return 1;
-    const scaleX = canvas.width / img.width;
-    const scaleY = canvas.height / img.height;
+    // At 90°/270° the displayed dimensions are swapped
+    const dispW = (rotation === 90 || rotation === 270) ? img.height : img.width;
+    const dispH = (rotation === 90 || rotation === 270) ? img.width : img.height;
+    const scaleX = canvas.width / dispW;
+    const scaleY = canvas.height / dispH;
     return Math.min(scaleX, scaleY) * 0.95;
-  }, []);
+  }, [rotation]);
 
   const screenToImage = useCallback(
     (sx: number, sy: number) => {
@@ -92,12 +101,33 @@ export function ImageCanvas({
       if (!canvas || !img) return { x: 0, y: 0 };
       const cx = canvas.width / 2;
       const cy = canvas.height / 2;
+
+      // Step 1: undo canvas-center translation
+      let x = sx - cx;
+      let y = sy - cy;
+
+      // Step 2: undo flip
+      if (flipH) x = -x;
+      if (flipV) y = -y;
+
+      // Step 3: undo rotation
+      const rad = -(rotation * Math.PI / 180);
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      const rx = x * cos - y * sin;
+      const ry = x * sin + y * cos;
+
+      // Step 4: re-apply canvas-center offset
+      const ux = rx + cx;
+      const uy = ry + cy;
+
+      // Step 5: undo zoom/offset (current screenToImage logic)
       return {
-        x: (sx - cx - offset.x) / zoom + img.width / 2,
-        y: (sy - cy - offset.y) / zoom + img.height / 2,
+        x: (ux - cx - offset.x) / zoom + img.width / 2,
+        y: (uy - cy - offset.y) / zoom + img.height / 2,
       };
     },
-    [zoom, offset]
+    [zoom, offset, rotation, flipH, flipV]
   );
 
   const hitTestBlock = useCallback(
@@ -229,6 +259,10 @@ export function ImageCanvas({
       ctx.save();
       const cx = canvas.width / 2;
       const cy = canvas.height / 2;
+      ctx.translate(cx, cy);
+      ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+      ctx.rotate(rotation * Math.PI / 180);
+      ctx.translate(-cx, -cy);
       ctx.translate(cx + effectiveOffset.x, cy + effectiveOffset.y);
       ctx.scale(effectiveZoom, effectiveZoom);
       ctx.translate(-img.width / 2, -img.height / 2);
@@ -254,6 +288,10 @@ export function ImageCanvas({
     ctx.save();
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
+    ctx.translate(cx, cy);
+    ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+    ctx.rotate(rotation * Math.PI / 180);
+    ctx.translate(-cx, -cy);
     ctx.translate(cx + effectiveOffset.x, cy + effectiveOffset.y);
     ctx.scale(effectiveZoom, effectiveZoom);
     ctx.translate(-img.width / 2, -img.height / 2);
